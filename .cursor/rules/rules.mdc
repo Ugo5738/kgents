@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project-Specific Rules: Agent-as-a-Service Platform
+
+## Project Context
+This project is an Agent-as-a-Service (AaaS) platform where users can quickly build and deploy AI agents, including multi-agent systems, potentially from natural language descriptions. The platform aims for rapid development and a seamless user experience.
+
+## Core Tech Stack
+- **Frontend (Agent Builder):** `Langflow` (visual, low-code)
+- **Backend (Platform APIs):** `FastAPI` (`Python`)
+- **Database:** `Supabase` (`PostgreSQL` + `pgvector`) for platform data and agent memory
+- **Deployment:** `Docker` (containerization), Cloud-Native (`Kubernetes`/`Serverless`)
+- **LLMs:** LLM-agnostic approach (support for `OpenAI`, `Claude`, `Gemini`, `Mistral`, `LLaMA`)
+- **Monitoring/Observability:** `LangSmith`/`Langfuse`
+- **Dependency Management:** `Poetry`
+- **Database Migrations:** `Alembic`
+- **User Management:** `fastapi-users` (for user management)
+- **Authentication:** `fastapi-jwt-auth` (for authentication)
+- **Rate Limiting:** `fastapi-limiter`
+- **Pagination:** `fastapi-pagination`
+- **Email Sending:** `fastapi-mail` (if needed for user verification/notifications)
+- **Caching:** `fastapi-cache`
+
+## Architectural Principles (Microservices)
+- **Microservices:** Decompose complex functionalities into smaller, independent services.
+- **Loose Coupling:** Services interact via well-defined interfaces (APIs, events).
+- **Event-Driven Architecture (EDA):** Use asynchronous communication for responsiveness and scalability (e.g., `Apache Kafka` or similar for inter-service communication).
+- **Multi-Tenancy:** Design for secure data isolation and resource management per user/organization. Prioritize Row-Level Security (RLS) in `Supabase`.
+
+## Vibe Coding Workflow (for AI Assistant)
+- **Spec First:** Always refer to `prd.md` for the overall application plan and features.
+- **Todo List Driven:** Follow `todo.md` for step-by-step implementation.
+- **One Feature at a Time:** Focus on completing one item from `todo.md` at a time.
+- **Test After Feature:** Once a feature is added, immediately write high-level integration tests for it.
+- **Commit After Tests Pass:** Only commit to Git once all tests for the new feature pass.
+- **Full Codebase Test:** After committing a feature, run tests for the entire codebase. Commit again if all pass.
+- **Reset if Stuck:** If the AI gets stuck in a loop or generates bad code, suggest `git reset --hard` to the last good commit and re-prompt with more context or a different approach.
+- **Provide Context:** Always consider the entire project context, existing files, and previous changes.
+- **Specificity:** Be precise in your code generation and explanations.
+- **Non-Coding Tasks:** Offer help with documentation, configuration files (`Docker`, `Kubernetes`), and test generation.
+
+## Security Checklist (CRITICAL)
+- **Rate Limit All API Endpoints:** Implement `fastapi-limiter` for all public-facing APIs.
+- **Use Row Level Security (RLS) Always:** Enforce RLS in `Supabase` for all user-specific data to ensure strict multi-tenant data isolation.
+- **Test Automation for High-Cost-of-Failure Areas:** Write rigorous test automation for payments, subscription management, and usage tracking.
+- **Third-Party Integration Tests:** When writing tests for third-party integrations (e.g., `Stripe`, LLM APIs), **ALWAYS** reference official examples and documentation. Do **NOT** assume AI will write these tests correctly.
+- **Input Validation & Sanitization:** Rigorously validate and sanitize all user inputs, especially those fed to LLMs (prompt injection prevention).
+- **Authentication & Authorization:** Implement robust JWT-based authentication (`fastapi-jwt-auth`) and fine-grained authorization (RBAC).
+- **Data Encryption:** Ensure data is encrypted both in transit (TLS/HTTPS) and at rest (`Supabase` handles this).
+- **Regular Security Audits:** Plan for periodic security audits and vulnerability scanning.
+
+## Current Working Directory
+`${cwd}`
