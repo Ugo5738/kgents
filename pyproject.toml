@@ -29,6 +29,7 @@ dependencies = [
     "fastapi-pagination",
     "fastapi-mail",
     "fastapi-cache",
+    "passlib[bcrypt] (>=1.7.4,<2.0.0)",
 ]
 
 [project.optional-dependencies]

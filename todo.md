@@ -28,7 +28,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - **Cursor AI:** Ask Cursor: "Add `fastapi`, `uvicorn`, `python-multipart`, `sqlalchemy`, `psycopg2-binary`, `supabase-py`, `langchain`, `langchain-community`, `langchain-openai`, `langsmith`, `langfuse`, `pydantic`, `python-dotenv`, `uvloop`, `httptools`, `fastapi-users`, `fastapi-jwt-auth`, `fastapi-limiter`, `fastapi-pagination`, `fastapi-mail`, `fastapi-cache`, `alembic`, `ruff`, `pytest` to `pyproject.toml` as dependencies. Split our dev-dependencies where necessary"
   - `poetry install --no-interaction --no-root`
   - **Vibe Code:** `git add pyproject.toml poetry.lock && git commit -m "Setup Poetry and initial dependencies"`
-- [x] **Supabase Project - [ ] **Supabase Project & Schema Setup:** Schema Setup:**
+- [x] **Supabase Project & Schema Setup:**
   - **External:** Create a new Supabase project. Enable `pgvector` extension.
   - **Cursor AI:** Ask Cursor: "Generate the SQL schema for `users`, `agents`, `tools`, and `agent_memories` tables, including RLS policies, as defined in `prd.md`. Save this to `supabase_schema.sql`."
   - **External:** Run `supabase_schema.sql` in Supabase SQL Editor.
@@ -38,11 +38,10 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 
 ### 1.2. User Management Microservice (User Service)
 
-- [ ] **FastAPI Core Setup:**
+- [x] **FastAPI Core Setup:**
   - **Cursor AI:** Ask Cursor: "Create `main.py` in the root. It should set up FastAPI, include lifespan context managers for startup/shutdown, and include API routers for `auth`, `agents`, `tools`, `nl_agents`, and `run` (which will be created later). Add a simple root endpoint `/`."
   - **Cursor AI:** Ask Cursor: "Create the directory structure: `app/api/v1/`, `app/models/`, `app/db/`, `app/core/`, `app/services/`, `tests/`."
-  - **Vibe Code:** `git add main.py app/ && git commit -m "FastAPI core setup and directory structure"`
-- [ ] **Supabase Client & CRUD:**
+- [x] **Supabase Client & CRUD:**
   - **Cursor AI:** Ask Cursor: "Create `app/db/supabase_client.py` to initialize the Supabase client using environment variables. Include an async function to get the client instance."
   - **Cursor AI:** Ask Cursor: "Create `app/db/crud_users.py` with async CRUD operations for the `users` table, including password hashing (using `passlib[bcrypt]`) for registration and verification for login. Follow RORO pattern."
   - **Vibe Code:** `git add app/db/supabase_client.py app/db/crud_users.py && git commit -m "Supabase client and user CRUD operations"`

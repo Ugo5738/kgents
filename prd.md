@@ -95,34 +95,41 @@ User Service:
 Responsibility: User authentication, authorization, profile management.
 Technologies: FastAPI, fastapi-users, fastapi-jwt-auth, Supabase (PostgreSQL).
 Security: Rate limiting, CAPTCHA, RLS.
+
 Agent Management Service:
 
 Responsibility: CRUD operations for agent metadata (name, description, langflow_flow_json), deployment status tracking.
 Technologies: FastAPI, Supabase (PostgreSQL).
 Security: RLS, input validation.
+
 Tool Registry Service:
 
 Responsibility: Store and manage definitions of custom tools (OpenAPI specs, Python code).
 Technologies: FastAPI, Supabase (PostgreSQL).
 Security: RLS, secure storage of tool code.
+
 Agent Deployment Service:
 
 Responsibility: Orchestrate the deployment of user-defined Langflow agents to the cloud (containerized or serverless).
 Technologies: FastAPI, Docker, Kubernetes API client (or cloud SDKs for serverless), potentially a message queue for async deployment tasks.
 Security: Secure execution environment for agents, resource isolation.
+
 Agent Runtime Service:
 
 Responsibility: Host and execute deployed user agents. This will be a scalable pool of containers/serverless functions.
 Technologies: Docker, Kubernetes/Cloud Functions, Langflow runtime (headless mode), LLM APIs, Supabase (for agent memory).
 Security: Sandboxing for tool execution, network isolation, content filtering.
+
 Observability & Monitoring Service:
 
 Responsibility: Collect logs, traces, and metrics from all other services and deployed agents. Provide a unified view.
 Technologies: FastAPI (for receiving webhooks/data), LangSmith/Langfuse SDKs, Prometheus/Grafana (or cloud-native monitoring solutions).
+
 Natural Language Agent Creation Service:
 
 Responsibility: Interpret natural language descriptions and generate/refine Langflow flow JSON.
 Technologies: FastAPI, LLM APIs (e.g., GPT-4o, Claude 3), LangChain/AutoGen (for parsing/generation logic).
+
 5.2. Data Flow & Communication
 API Gateway: All external requests will go through an API Gateway for routing, authentication, rate limiting, and WAF protection.
 Synchronous Communication: RESTful APIs for direct requests between services (e.g., User Service calling Agent Management Service).

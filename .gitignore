@@ -101,6 +101,8 @@ vector_store/
 *.txt
 !requirements.txt
 !README.txt
+!app/models/
+!app/models/**
 
 # Jupyter Notebook
 .ipynb_checkpoints
