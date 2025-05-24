@@ -6,13 +6,13 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 
 ### 1.1. Project Setup & Initial Environment
 
-- [ ] **Initialize Git Repository:**
+- [x] **Initialize Git Repository:**
   - `git init` in project root.
   - **Cursor AI:** Ask Cursor: "Generate a comprehensive `.gitignore` for a Python FastAPI project with a frontend, including common AI/LLM-related temporary files and environment variables."
   - **Cursor AI:** Ask Cursor: "Generate a README.md for an Agent-as-a-Service platform. Include sections for project overview, tech stack (Langflow, FastAPI, Supabase, Docker, Kubernetes/Serverless), key features (visual agent builder, multi-agent support, natural language agent creation), and setup instructions."
-  - **Cursor AI:** Create `./.cursor/rules.md` (content provided in PRD section above).
+  - **Cursor AI:** Create `./.cursor/rules/rules.mdc` (content provided in PRD section above).
   - **Vibe Code:** `git add . && git commit -m "Initial project setup and Cursor rules"`
-- [ ] **Clone Core Open-Source Repositories (for future modifications & context):**
+- [x] **Clone Core Open-Source Repositories (for future modifications & context):**
   - **Action:** Create a `vendor/` directory in your project root to store these.
   - **Cursor AI:** Ask Cursor: "Generate git clone commands for the latest stable versions of `langflow-ai/langflow`, `langchain-ai/langchain`, `joaomdmoura/crewai`, and `microsoft/autogen` into the `vendor/` directory."
     ```bash
@@ -22,13 +22,13 @@ This document outlines the step-by-step plan for developing and deploying the Aa
     git clone https://github.com/microsoft/autogen.git vendor/autogen
     ```
   - **Vibe Code:** `git add vendor/ && git commit -m "Cloned core open-source repositories for future reference and modification"`
-- [ ] **Python Environment & Poetry Setup:**
+- [x] **Python Environment & Poetry Setup:**
   - Install Poetry: `pip install poetry`
   - `poetry init --no-interaction`
-  - **Cursor AI:** Ask Cursor: "Add `fastapi`, `uvicorn`, `python-multipart`, `sqlalchemy`, `psycopg2-binary`, `supabase-py`, `langchain`, `langchain-community`, `langchain-openai`, `langsmith`, `langfuse`, `pydantic`, `python-dotenv`, `uvloop`, `httptools`, `fastapi-users`, `fastapi-jwt-auth`, `fastapi-limiter`, `fastapi-pagination`, `fastapi-mail`, `fastapi-cache`, `alembic`, `ruff`, `pytest` to `pyproject.toml` as dependencies."
-  - `poetry install`
+  - **Cursor AI:** Ask Cursor: "Add `fastapi`, `uvicorn`, `python-multipart`, `sqlalchemy`, `psycopg2-binary`, `supabase-py`, `langchain`, `langchain-community`, `langchain-openai`, `langsmith`, `langfuse`, `pydantic`, `python-dotenv`, `uvloop`, `httptools`, `fastapi-users`, `fastapi-jwt-auth`, `fastapi-limiter`, `fastapi-pagination`, `fastapi-mail`, `fastapi-cache`, `alembic`, `ruff`, `pytest` to `pyproject.toml` as dependencies. Split our dev-dependencies where necessary"
+  - `poetry install --no-interaction --no-root`
   - **Vibe Code:** `git add pyproject.toml poetry.lock && git commit -m "Setup Poetry and initial dependencies"`
-- [ ] **Supabase Project & Schema Setup:**
+- [x] **Supabase Project - [ ] **Supabase Project & Schema Setup:** Schema Setup:**
   - **External:** Create a new Supabase project. Enable `pgvector` extension.
   - **Cursor AI:** Ask Cursor: "Generate the SQL schema for `users`, `agents`, `tools`, and `agent_memories` tables, including RLS policies, as defined in `prd.md`. Save this to `supabase_schema.sql`."
   - **External:** Run `supabase_schema.sql` in Supabase SQL Editor.
