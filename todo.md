@@ -45,7 +45,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - **Cursor AI:** Ask Cursor: "Create `app/db/supabase_client.py` to initialize the Supabase client using environment variables. Include an async function to get the client instance."
   - **Cursor AI:** Ask Cursor: "Create `app/db/crud_users.py` with async CRUD operations for the `users` table, including password hashing (using `passlib[bcrypt]`) for registration and verification for login. Follow RORO pattern."
   - **Vibe Code:** `git add app/db/supabase_client.py app/db/crud_users.py && git commit -m "Supabase client and user CRUD operations"`
-- [ ] **User Models & Authentication:**
+- [x] **User Models - [ ] **User Models & Authentication:** Authentication:**
   - **Cursor AI:** Ask Cursor: "Create `app/models/user.py` with Pydantic models for `UserCreate`, `UserLogin`, `UserResponse`, and `Token`. Use `fastapi-users` models as a reference."
   - **Cursor AI:** Ask Cursor: "Create `app/core/security.py` for JWT token generation and verification using `fastapi-jwt-auth`. Include functions for password hashing and verification."
   - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth.py` with FastAPI routes for `/register` (POST) and `/login` (POST). Use `fastapi-users` and `fastapi-jwt-auth` for user management and authentication. Implement rate limiting using `fastapi-limiter`. Add a CAPTCHA placeholder for now."
