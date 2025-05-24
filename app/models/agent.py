@@ -12,9 +12,9 @@ class AgentCreate(BaseModel):
 
 class AgentUpdate(BaseModel):
     """Schema for updating an existing agent."""
-    name: Optional[str]
-    description: Optional[str]
-    langflow_flow_json: Optional[Dict[str, Any]]
+    name: Optional[str] = None
+    description: Optional[str] = None
+    langflow_flow_json: Optional[Dict[str, Any]] = None
 
 
 class AgentResponse(BaseModel):
