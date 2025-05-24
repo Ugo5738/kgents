@@ -80,10 +80,10 @@ wandb/
 runs/
 logs/
 checkpoints/
-models/
-datasets/
-embeddings/
-vector_store/
+# models/
+# datasets/
+# embeddings/
+# vector_store/
 *.npy
 *.npz
 *.h5
@@ -101,8 +101,6 @@ vector_store/
 *.txt
 !requirements.txt
 !README.txt
-!app/models/
-!app/models/**
 
 # Jupyter Notebook
 .ipynb_checkpoints
