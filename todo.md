@@ -50,7 +50,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - **Cursor AI:** Ask Cursor: "Create `app/core/security.py` for JWT token generation and verification using `fastapi-jwt-auth`. Include functions for password hashing and verification."
   - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth.py` with FastAPI routes for `/register` (POST) and `/login` (POST). Use `fastapi-users` and `fastapi-jwt-auth` for user management and authentication. Implement rate limiting using `fastapi-limiter`. Add a CAPTCHA placeholder for now."
   - **Vibe Code:** `git add app/models/user.py app/core/security.py app/api/v1/auth.py && git commit -m "Implement user models and authentication routes"`
-- [ ] **Tests for User Service:**
+- [x] **Tests for User Service:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for user registration and login in `tests/test_auth.py`. Simulate a user registering, then logging in with the correct credentials, and attempting to access a protected route with the token." Use `pytest` and `httpx`."
   - **Vibe Code:** Run tests: `poetry run pytest tests/test_auth.py`. Ensure all pass. `git add tests/test_auth.py && git commit -m "Add integration tests for user authentication"`
 
