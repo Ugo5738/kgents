@@ -1,0 +1,43 @@
+[project]
+name = "kgents"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "daniel",email = "danielnwachukwu5738@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "supabase",
+    "langchain",
+    "langchain-community",
+    "langchain-openai",
+    "langsmith",
+    "langfuse",
+    "pydantic",
+    "python-dotenv",
+    "uvloop",
+    "httptools",
+    "fastapi-users",
+    "fastapi-jwt-auth",
+    "fastapi-limiter",
+    "fastapi-pagination",
+    "fastapi-mail",
+    "fastapi-cache",
+]
+
+[project.optional-dependencies]
+dev = [
+    "alembic",
+    "ruff",
+    "pytest",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
