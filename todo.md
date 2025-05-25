@@ -113,7 +113,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - Configure `env_file` + necessary `environment` in each
   - (Optional) mount local code for hot-reload
 
-- [ ] **Local Supabase API Layer**
+- [x] **Local Supabase API Layer**
 
   - Add a PostgREST or Supabase CLI container so `supabase-py` talks to a REST endpoint
 
