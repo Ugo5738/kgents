@@ -113,9 +113,12 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - Configure `env_file` + necessary `environment` in each
   - (Optional) mount local code for hot-reload
 
-- [x] **Local Supabase API Layer**
+- [ ] **Install Supabase CLI for Local Development**
 
-  - Add a PostgREST or Supabase CLI container so `supabase-py` talks to a REST endpoint
+  - Install via npm: `npm install -g supabase` or via Homebrew: `brew install supabase/tap/supabase`
+  - Run `supabase init` in the project root to scaffold Supabase services
+  - Run `supabase start` to spin up local Supabase stack (Auth, Database, Realtime, Storage, PostgREST)
+  - Ensure your `.env` has the correct credentials
 
 - [x] **Bring up & verify**
   - Run `docker compose up --build`
