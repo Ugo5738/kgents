@@ -1,4 +1,4 @@
-# Project Todo List: Agent-as-a-Service Platform
+# Project Todo List: Kgents (Agent-as-a-Service) Platform
 
 This document outlines the step-by-step plan for developing and deploying the AaaS platform. Follow the vibe coding principles outlined in `./.cursor/rules.md`.
 
@@ -9,7 +9,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 - [x] **Initialize Git Repository:**
   - `git init` in project root.
   - **Cursor AI:** Ask Cursor: "Generate a comprehensive `.gitignore` for a Python FastAPI project with a frontend, including common AI/LLM-related temporary files and environment variables."
-  - **Cursor AI:** Ask Cursor: "Generate a README.md for an Agent-as-a-Service platform. Include sections for project overview, tech stack (Langflow, FastAPI, Supabase, Docker, Kubernetes/Serverless), key features (visual agent builder, multi-agent support, natural language agent creation), and setup instructions."
+  - **Cursor AI:** Ask Cursor: "Generate a README.md for Kgents an Agent-as-a-Service platform. Include sections for project overview, tech stack (Langflow, FastAPI, Supabase, Docker, Kubernetes/Serverless), key features (visual agent builder, multi-agent support, natural language agent creation), and setup instructions."
   - **Cursor AI:** Create `./.cursor/rules/rules.mdc` (content provided in PRD section above).
   - **Vibe Code:** `git add . && git commit -m "Initial project setup and Cursor rules"`
 - [x] **Clone Core Open-Source Repositories (for future modifications & context):**
@@ -117,7 +117,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 
   - Add a PostgREST or Supabase CLI container so `supabase-py` talks to a REST endpoint
 
-- [ ] **Bring up & verify**
+- [x] **Bring up & verify**
   - Run `docker compose up --build`
   - Hit `/docs`, `/register`, `/agents`, etc. to confirm each service
   - Commit your compose file:
