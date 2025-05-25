@@ -106,6 +106,31 @@ This will launch your FastAPI and Langflow IDE containers connected to the local
   serverless deploy
   ```
 
+### Production Deployment
+
+For production, configure your application to use your hosted Supabase instance. Update your `.env`:
+
+```bash
+SUPABASE_URL=<your-production-supabase-url>
+SUPABASE_ANON_KEY=<your-production-anon-key>
+DATABASE_URL=postgresql://<user>:<password>@<prod-db-host>:5432/<database>
+```
+
+Build and push Docker images to your container registry:
+
+```bash
+docker build -t <registry>/kgents-auth:latest -f app/api/v1/auth/Dockerfile .
+docker push <registry>/kgents-auth:latest
+# repeat for agents, tools, nl_agents, run services
+```
+
+Deploy in your production environment:
+
+- Docker Compose: `docker-compose -f docker-compose.prod.yml up -d`
+- Kubernetes: `kubectl apply -f kubernetes/`
+
+Automate these steps in your CI/CD pipeline (see the **CI/CD Pipeline** task in `todo.md`).
+
 ---
 
 ## Architecture & Deployment Guide

@@ -35,4 +35,4 @@ def test_docs_and_openapi():
         assert resp2.status_code == 200
         data = resp2.json()
         assert "openapi" in data
-        assert data["info"]["title"] == "Agent-as-a-Service Platform"
+        assert data["info"]["title"] == "Kgents (Agent-as-a-Service) Platform"

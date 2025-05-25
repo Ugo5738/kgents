@@ -23,7 +23,7 @@ def create_app() -> FastAPI:
     Create and configure the FastAPI application.
     """
     app = FastAPI(
-        title="Agent-as-a-Service Platform",
+        title="Kgents (Agent-as-a-Service) Platform",
         version="0.1.0",
         lifespan=lifespan,
     )
@@ -47,9 +47,9 @@ def create_app() -> FastAPI:
     @app.get("/", tags=["root"])
     async def root() -> dict:
         """Root endpoint returning a welcome message."""
-        return {"message": "Welcome to the Agent-as-a-Service Platform"}
+        return {"message": "Welcome to the Kgents (Agent-as-a-Service) Platform"}
 
     return app
 
 
-app = create_app() 
+app = create_app()

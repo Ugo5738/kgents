@@ -13,4 +13,6 @@ def test_root_endpoint():
     with TestClient(app) as client:
         response = client.get("/")
         assert response.status_code == 200
-        assert response.json() == {"message": "Welcome to the Agent-as-a-Service Platform"} 
+        assert response.json() == {
+            "message": "Welcome to the Kgents (Agent-as-a-Service) Platform"
+        }

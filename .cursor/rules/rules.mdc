@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: false
 ---
-# Project-Specific Rules: Agent-as-a-Service Platform
+# Project-Specific Rules: Kgents (Agent-as-a-Service) Platform
 
 ## Project Context
 This project is an Agent-as-a-Service (AaaS) platform where users can quickly build and deploy AI agents, including multi-agent systems, potentially from natural language descriptions. The platform aims for rapid development and a seamless user experience.

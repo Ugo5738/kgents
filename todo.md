@@ -120,7 +120,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - Run `supabase start` to spin up local Supabase stack (Auth, Database, Realtime, Storage, PostgREST)
   - Ensure your `.env` has the correct credentials
 
-- [x] **Bring up & verify**
+- [ ] **Bring up & verify**
   - Run `docker compose up --build`
   - Hit `/docs`, `/register`, `/agents`, etc. to confirm each service
   - Commit your compose file:

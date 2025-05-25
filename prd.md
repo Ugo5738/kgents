@@ -1,8 +1,8 @@
-# Product Requirements Document: Agent-as-a-Service (AaaS) Platform
+# Product Requirements Document: Kgents (Agent-as-a-Service) Platform
 
 ## 1. Introduction
 
-This document outlines the requirements for building a state-of-the-art Agent-as-a-Service (AaaS) platform. The platform aims to empower users, from technical developers to non-technical business users, to quickly build, deploy, and manage intelligent AI agents. Leveraging modern AI frameworks, LLMs, and cloud-native architecture, the platform will offer a comprehensive ecosystem for agent creation, focusing on rapid development, scalability, and robust security.
+This document outlines the requirements for building a state-of-the-art Kgents (Agent-as-a-Service) platform. The platform aims to empower users, from technical developers to non-technical business users, to quickly build, deploy, and manage intelligent AI agents. Leveraging modern AI frameworks, LLMs, and cloud-native architecture, the platform will offer a comprehensive ecosystem for agent creation, focusing on rapid development, scalability, and robust security.
 
 ## 2. Vision & Goals
 
