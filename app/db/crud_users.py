@@ -2,13 +2,6 @@
 CRUD operations for users table in Supabase.
 """
 
-import warnings
-
-warnings.filterwarnings(
-    "ignore",
-    ".*crypt is deprecated and slated for removal.*",
-    DeprecationWarning,
-)
 from passlib.context import CryptContext
 from supabase import Client
 
