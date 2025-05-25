@@ -1,8 +1,8 @@
-# Agent-as-a-Service Platform
+# Kgents (Agent-as-a-Service) Platform
 
 ## Project Overview
 
-Agent-as-a-Service is a platform that enables you to visually build, deploy, and manage autonomous AI agents. It combines Langflow for workflow design, FastAPI for serving APIs, and Supabase for persistent storage and real-time data.
+Kgents is an Agent-as-a-Service platform that enables you to visually build, deploy, and manage autonomous AI agents. It combines Langflow for workflow design, FastAPI for serving APIs, and Supabase for persistent storage and real-time data.
 
 ## Tech Stack
 
@@ -42,37 +42,56 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourorg/agent-as-a-service.git
-   cd agent-as-a-service
+   git clone https://github.com/yourorg/kgents.git
+   cd kgents
    ```
 
-2. Start the backend (FastAPI):
+2. Install Supabase CLI globally:
 
    ```bash
-   cd backend
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   npm install -g supabase    # or brew install supabase/tap/supabase
+   ```
+
+3. Initialize Supabase in your project:
+
+   ```bash
+   supabase init
+   ```
+
+4. Start the Supabase local stack (Auth, Database, Realtime, Storage, PostgREST):
+
+   ```bash
+   supabase start
+   ```
+
+5. In parallel, start your FastAPI backend:
+
+   ```bash
    uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-3. Start the frontend (UI):
+6. In parallel, start the Langflow IDE (headless mode):
 
    ```bash
-   cd ../frontend
-   npm install
-   npm run dev
+   docker run -it --rm --env-file .env -p 7860:7860 langflowai/langflow:latest
    ```
 
-4. Open your browser at `http://localhost:3000` to access the visual agent builder.
+7. (Optional) For live frontend development:
+
+   ```bash
+   cd frontend && npm install && npm run dev
+   ```
 
 ### Docker
 
-Build and run all services with Docker Compose:
+To run all backend and Langflow services in containers:
 
 ```bash
+supabase start          # bring up Supabase stack
 docker-compose up --build
 ```
+
+This will launch your FastAPI and Langflow IDE containers connected to the local Supabase services.
 
 ### Kubernetes / Serverless
 
