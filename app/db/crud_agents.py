@@ -31,12 +31,7 @@ async def get_agent_by_id(agent_id: int) -> Optional[AgentResponse]:
     Retrieve an agent by its ID.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("agents")
-        .select("*")
-        .eq("id", agent_id)
-        .execute()
-    )
+    response = client.table("agents").select("*").eq("id", agent_id).execute()
     data = response.data or []
     if not data:
         return None
@@ -48,27 +43,19 @@ async def get_all_agents_by_user(user_id: int) -> List[AgentResponse]:
     List all agents belonging to a user.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("agents")
-        .select("*")
-        .eq("user_id", user_id)
-        .execute()
-    )
+    response = client.table("agents").select("*").eq("user_id", user_id).execute()
     return [AgentResponse(**item) for item in response.data or []]
 
 
-async def update_agent(agent_id: int, agent_update: AgentUpdate) -> Optional[AgentResponse]:
+async def update_agent(
+    agent_id: int, agent_update: AgentUpdate
+) -> Optional[AgentResponse]:
     """
     Update an existing agent's details.
     """
     client: Client = await get_supabase_client()
-    update_data = agent_update.dict(exclude_unset=True)
-    response = (
-        client.table("agents")
-        .update(update_data)
-        .eq("id", agent_id)
-        .execute()
-    )
+    update_data = agent_update.model_dump(exclude_unset=True)
+    response = client.table("agents").update(update_data).eq("id", agent_id).execute()
     data = response.data or []
     if not data:
         return None
@@ -80,4 +67,4 @@ async def delete_agent(agent_id: int) -> None:
     Delete an agent by its ID.
     """
     client: Client = await get_supabase_client()
-    client.table("agents").delete().eq("id", agent_id).execute() 
+    client.table("agents").delete().eq("id", agent_id).execute()

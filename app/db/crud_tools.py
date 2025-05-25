@@ -32,12 +32,7 @@ async def get_tool_by_id(tool_id: int) -> Optional[ToolResponse]:
     Retrieve a tool by its ID.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("tools")
-        .select("*")
-        .eq("id", tool_id)
-        .execute()
-    )
+    response = client.table("tools").select("*").eq("id", tool_id).execute()
     data = response.data or []
     if not data:
         return None
@@ -49,12 +44,7 @@ async def get_all_tools_by_user(user_id: int) -> List[ToolResponse]:
     List all tools belonging to a user.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("tools")
-        .select("*")
-        .eq("user_id", user_id)
-        .execute()
-    )
+    response = client.table("tools").select("*").eq("user_id", user_id).execute()
     return [ToolResponse(**item) for item in response.data or []]
 
 
@@ -63,13 +53,8 @@ async def update_tool(tool_id: int, tool_update: ToolUpdate) -> Optional[ToolRes
     Update an existing tool's details.
     """
     client: Client = await get_supabase_client()
-    update_data = tool_update.dict(exclude_unset=True)
-    response = (
-        client.table("tools")
-        .update(update_data)
-        .eq("id", tool_id)
-        .execute()
-    )
+    update_data = tool_update.model_dump(exclude_unset=True)
+    response = client.table("tools").update(update_data).eq("id", tool_id).execute()
     data = response.data or []
     if not data:
         return None
@@ -81,4 +66,4 @@ async def delete_tool(tool_id: int) -> None:
     Delete a tool by its ID.
     """
     client: Client = await get_supabase_client()
-    client.table("tools").delete().eq("id", tool_id).execute() 
+    client.table("tools").delete().eq("id", tool_id).execute()

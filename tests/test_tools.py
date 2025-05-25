@@ -40,7 +40,7 @@ def dummy_tool_crud(monkeypatch):
         existing = storage.get(tool_id)
         if not existing:
             return None
-        updated = existing.copy(update=tool_update.dict(exclude_unset=True))
+        updated = existing.model_copy(update=tool_update.model_dump(exclude_unset=True))
         storage[tool_id] = updated
         return updated
 

@@ -2,6 +2,13 @@
 CRUD operations for users table in Supabase.
 """
 
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    ".*crypt is deprecated and slated for removal.*",
+    DeprecationWarning,
+)
 from passlib.context import CryptContext
 from supabase import Client
 
@@ -44,12 +51,7 @@ async def authenticate_user(user_login: UserLogin) -> UserResponse | None:
     Authenticate user and return user info if successful.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("users")
-        .select("*")
-        .eq("email", user_login.email)
-        .execute()
-    )
+    response = client.table("users").select("*").eq("email", user_login.email).execute()
     data = response.data or []
     if not data:
         return None
@@ -64,13 +66,8 @@ async def get_user_by_id(user_id: int) -> UserResponse | None:
     Retrieve a user by their ID from the database.
     """
     client: Client = await get_supabase_client()
-    response = (
-        client.table("users")
-        .select("*")
-        .eq("id", user_id)
-        .execute()
-    )
+    response = client.table("users").select("*").eq("id", user_id).execute()
     data = response.data or []
     if not data:
         return None
-    return UserResponse(**data[0]) 
+    return UserResponse(**data[0])

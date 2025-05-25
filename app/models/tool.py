@@ -1,10 +1,11 @@
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ToolCreate(BaseModel):
     """Schema for creating a new tool."""
+
     name: str
     description: Optional[str]
     tool_type: str
@@ -13,6 +14,7 @@ class ToolCreate(BaseModel):
 
 class ToolUpdate(BaseModel):
     """Schema for updating an existing tool."""
+
     name: Optional[str] = None
     description: Optional[str] = None
     tool_type: Optional[str] = None
@@ -21,6 +23,7 @@ class ToolUpdate(BaseModel):
 
 class ToolResponse(BaseModel):
     """Schema for tool data returned in responses."""
+
     id: int
     user_id: int
     name: str
@@ -28,5 +31,4 @@ class ToolResponse(BaseModel):
     tool_type: str
     definition: Dict[str, Any]
 
-    class Config:
-        orm_mode = True 
+    model_config = ConfigDict(from_attributes=True)

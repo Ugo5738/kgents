@@ -31,7 +31,7 @@ class DummyTable:
     def eq(self, key, val):
         self.filter = (key, val)
         # apply pending update if present
-        if hasattr(self, 'pending_update') and self.pending_update:
+        if hasattr(self, "pending_update") and self.pending_update:
             record = self.storage.get(val)
             if record:
                 record.update(self.pending_update)
@@ -62,6 +62,7 @@ class DummyTable:
         class Resp:
             def __init__(self, data):
                 self.data = data
+
         return Resp(self.data)
 
 
@@ -81,14 +82,15 @@ def stub_supabase(monkeypatch):
     async def dummy_get_supabase_client():
         return DummyClient(storage)
 
-    monkeypatch.setattr(crud_tools, 'get_supabase_client', dummy_get_supabase_client)
+    monkeypatch.setattr(crud_tools, "get_supabase_client", dummy_get_supabase_client)
     return storage
 
 
 def test_tool_crud_operations(stub_supabase):
     """Test create, get, list, update, delete for tools CRUD."""
     storage = stub_supabase
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     # Create tool
     create_data = ToolCreate(
@@ -124,4 +126,4 @@ def test_tool_crud_operations(stub_supabase):
 
     # Get after delete
     none_tool = loop.run_until_complete(crud_tools.get_tool_by_id(1))
-    assert none_tool is None 
+    assert none_tool is None

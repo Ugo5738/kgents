@@ -41,7 +41,9 @@ def dummy_agent_crud(monkeypatch):
         existing = storage.get(agent_id)
         if not existing:
             return None
-        updated = existing.copy(update=agent_update.dict(exclude_unset=True))
+        updated = existing.model_copy(
+            update=agent_update.model_dump(exclude_unset=True)
+        )
         storage[agent_id] = updated
         return updated
 
