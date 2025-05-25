@@ -18,25 +18,30 @@ def dummy_user_crud(monkeypatch):
 
     async def dummy_create_user(user_create: UserCreate):
         user = {"id": 1, "email": user_create.email}
-        storage['user'] = user
+        storage["user"] = user
         from app.models.user import UserResponse
+
         return UserResponse(**user)
 
     async def dummy_authenticate_user(user_login: UserLogin):
-        if 'user' in storage and storage['user']['email'] == user_login.email:
+        if "user" in storage and storage["user"]["email"] == user_login.email:
             from app.models.user import UserResponse
-            return UserResponse(**storage['user'])
+
+            return UserResponse(**storage["user"])
         return None
 
     async def dummy_get_user_by_id(user_id: int):
-        if 'user' in storage and storage['user']['id'] == user_id:
+        if "user" in storage and storage["user"]["id"] == user_id:
             from app.models.user import UserResponse
-            return UserResponse(**storage['user'])
+
+            return UserResponse(**storage["user"])
         return None
 
-    monkeypatch.setattr('app.api.v1.auth.create_user', dummy_create_user)
-    monkeypatch.setattr('app.api.v1.auth.authenticate_user', dummy_authenticate_user)
-    monkeypatch.setattr('app.api.v1.auth.get_user_by_id', dummy_get_user_by_id)
+    monkeypatch.setattr("app.api.v1.auth.routes.create_user", dummy_create_user)
+    monkeypatch.setattr(
+        "app.api.v1.auth.routes.authenticate_user", dummy_authenticate_user
+    )
+    monkeypatch.setattr("app.api.v1.auth.routes.get_user_by_id", dummy_get_user_by_id)
 
 
 def test_register_login_me_flow():
@@ -70,4 +75,4 @@ def test_register_login_me_flow():
         )
         assert resp.status_code == 200
         me_data = resp.json()
-        assert me_data == data 
+        assert me_data == data

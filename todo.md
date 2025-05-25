@@ -48,51 +48,83 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 - [x] **User Models & Authentication:**
   - **Cursor AI:** Ask Cursor: "Create `app/models/user.py` with Pydantic models for `UserCreate`, `UserLogin`, `UserResponse`, and `Token`. Use `fastapi-users` models as a reference."
   - **Cursor AI:** Ask Cursor: "Create `app/core/security.py` for JWT token generation and verification using `fastapi-jwt-auth`. Include functions for password hashing and verification."
-  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth.py` with FastAPI routes for `/register` (POST) and `/login` (POST). Use `fastapi-users` and `fastapi-jwt-auth` for user management and authentication. Implement rate limiting using `fastapi-limiter`. Add a CAPTCHA placeholder for now."
-  - **Vibe Code:** `git add app/models/user.py app/core/security.py app/api/v1/auth.py && git commit -m "Implement user models and authentication routes"`
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth/routes.py` with FastAPI routes for `/register` (POST) and `/login` (POST). Use `fastapi-users` and `fastapi-jwt-auth` for user management and authentication. Implement rate limiting using `fastapi-limiter`. Add a CAPTCHA placeholder for now."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/models/user.py app/core/security.py app/api/v1/auth/routes.py app/api/v1/auth/__init__.py && git commit -m "Implement user models and authentication routes"`
 - [x] **Tests for User Service:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for user registration and login in `tests/test_auth.py`. Simulate a user registering, then logging in with the correct credentials, and attempting to access a protected route with the token." Use `pytest` and `httpx`."
   - **Vibe Code:** Run tests: `poetry run pytest tests/test_auth.py`. Ensure all pass. `git add tests/test_auth.py && git commit -m "Add integration tests for user authentication"`
 
 ### 1.3. Agent Management Microservice (Agent Management Service)
 
-- [ ] **Agent Models & CRUD:**
+- [x] **Agent Models & CRUD:**
   - **Cursor AI:** Ask Cursor: "Create `app/models/agent.py` with Pydantic models for `AgentCreate`, `AgentUpdate`, and `AgentResponse`. Include `langflow_flow_json` as JSONB type."
   - **Cursor AI:** Ask Cursor: "Create `app/db/crud_agents.py` with async CRUD functions for the `agents` table (create, get_by_id, get_all_by_user, update, delete). Ensure RLS is respected."
   - **Vibe Code:** `git add app/models/agent.py app/db/crud_agents.py && git commit -m "Agent models and CRUD operations"`
-- [ ] **Agent API Endpoints:**
-  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/agents.py` with FastAPI routes for `/agents` (POST to create, GET to list user's agents) and `/agents/{agent_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
-  - **Vibe Code:** `git add app/api/v1/agents.py && git commit -m "Implement agent management API endpoints"`
-- [ ] **Tests for Agent Management Service:**
+- [x] **Agent API Endpoints:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/agents/routes.py` with FastAPI routes for `/agents` (POST to create, GET to list user's agents) and `/agents/{agent_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/agents/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/agents/routes.py app/api/v1/agents/__init__.py && git commit -m "Implement agent management API endpoints"`
+- [x] **Tests for Agent Management Service:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for agent creation, listing, retrieval, update, and deletion in `tests/test_agents.py`. Ensure tests cover RLS and authentication."
   - **Vibe Code:** Run tests. `git add tests/test_agents.py && git commit -m "Add integration tests for agent management"`
 
 ### 1.4. Tool Registry Microservice (Tool Registry Service)
 
-- [ ] **Tool Models & CRUD:**
+- [x] **Tool Models & CRUD:**
   - **Cursor AI:** Ask Cursor: "Create `app/models/tool.py` with Pydantic models for `ToolCreate` (`user_id`, `name`, `description`, `tool_type`, `definition`), `ToolResponse`. `definition` should be JSONB."
   - **Cursor AI:** Ask Cursor: "Create `app/db/crud_tools.py` with async CRUD functions for the `tools` table. Ensure RLS is respected."
   - **Vibe Code:** `git add app/models/tool.py app/db/crud_tools.py && git commit -m "Tool models and CRUD operations"`
-- [ ] **Tool API Endpoints:**
-  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/tools.py` with FastAPI routes for `/tools` (POST to create, GET to list user's tools) and `/tools/{tool_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
-  - **Vibe Code:** `git add app/api/v1/tools.py && git commit -m "Implement tool registry API endpoints"`
-- [ ] **Tests for Tool Registry Service:**
+- [x] **Tool API Endpoints:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/tools/routes.py` with FastAPI routes for `/tools` (POST to create, GET to list user's tools) and `/tools/{tool_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/tools/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/tools/routes.py app/api/v1/tools/__init__.py && git commit -m "Implement tool registry API endpoints"`
+- [x] **Tests for Tool Registry Service:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for tool creation, listing, retrieval, update, and deletion in `tests/test_tools.py`. Ensure tests cover RLS and authentication."
   - **Vibe Code:** Run tests. `git add tests/test_tools.py && git commit -m "Add integration tests for tool registry"`
 
 ## Phase 2: Langflow Integration & Agent Deployment
 
-### 2.1. Langflow Deployment (Local Development)
+### 2.1. Dockerization of Microservices
 
-- [ ] **Docker Compose for Local Dev:**
-  - **Cursor AI:** Ask Cursor: "Generate a `docker-compose.yml` for local development. It should include services for:
-    - `fastapi_backend` (your FastAPI app)
-    - `langflow_ide` (official `langflowai/langflow:latest` image)
-    - `supabase_db` (PostgreSQL with pgvector for local Supabase emulation)
-    - Ensure `fastapi_backend` and `langflow_ide` can connect to `supabase_db`.
-    - Map necessary ports (e.g., 8000 for FastAPI, 7860 for Langflow).
-    - Include environment variables for LLM API keys and LangSmith/Langfuse for `langflow_ide` service."
-  - **Vibe Code:** Run `docker compose up --build` in terminal. Verify FastAPI and Langflow are accessible. `git add docker-compose.yml && git commit -m "Add docker-compose for local development"`
+- [x] **Dockerfiles for Individual Services**
+
+  - Create `app/api/v1/auth/Dockerfile` that:
+    - Uses a `python:3.12-slim` base
+    - Installs dependencies via Poetry or pip
+    - Copies project code
+    - Sets CMD to run Uvicorn on port 8000
+  - Create `app/api/v1/agents/Dockerfile` (same pattern)
+  - Create `app/api/v1/tools/Dockerfile`
+  - Create `app/api/v1/nl_agents/Dockerfile`
+  - Create `app/api/v1/run/Dockerfile`
+
+- [x] **Write `docker-compose.yml`**
+
+  - It should include each microservice:
+    - `supabase_db` (PostgreSQL + pgvector for local Supabase emulation)
+    - `supabase_api` (PostgREST or Supabase CLI)
+    - `auth_service` (build: `app/api/v1/auth`, ports: 8001:8000)
+    - `agents_service` (build: `app/api/v1/agents`, ports: 8002:8000)
+    - `tools_service` (build: `app/api/v1/tools`, ports: 8003:8000)
+    - `nl_agents_service` (build: `app/api/v1/nl_agents`, ports: 8004:8000)
+    - `run_service` (build: `app/api/v1/run`, ports: 8005:8000)
+    - `langflow_ide` (official image: `langflowai/langflow:latest`, ports: 7860:7860)
+  - Configure `env_file` + necessary `environment` in each
+  - (Optional) mount local code for hot-reload
+
+- [ ] **Local Supabase API Layer**
+
+  - Add a PostgREST or Supabase CLI container so `supabase-py` talks to a REST endpoint
+
+- [ ] **Bring up & verify**
+  - Run `docker compose up --build`
+  - Hit `/docs`, `/register`, `/agents`, etc. to confirm each service
+  - Commit your compose file:
+    ```bash
+    git add docker-compose.yml
+    git commit -m "Add docker-compose for local development"
+    ```
 
 ### 2.2. Agent Deployment Service
 
@@ -124,13 +156,14 @@ This document outlines the step-by-step plan for developing and deploying the Aa
     - Define the command to run the flow as an API endpoint."
   - **Vibe Code:** `git add templates/agent_runtime_dockerfile.j2 && git commit -m "Generic agent runtime Dockerfile template"`
 - [ ] **Agent Execution Endpoint:**
-  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/run.py` with a `POST /run/{agent_id}` endpoint. This endpoint will be called by users to execute their deployed agents. It should:
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/run/routes.py` with a `POST /run/{agent_id}` endpoint. This endpoint will be called by users to execute their deployed agents. It should:
     - Load the `langflow_flow_json` for the given `agent_id`.
     - Initialize and run the Langflow flow.
     - Handle input/output.
     - Integrate with LangSmith/Langfuse for tracing.
     - Ensure agent memory (Supabase) is correctly configured for the specific agent/user."
-  - **Vibe Code:** `git add app/api/v1/run.py && git commit -m "Agent execution API endpoint"`
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/run/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/run/routes.py app/api/v1/run/__init__.py && git commit -m "Implement agent execution API endpoint"`
 - [ ] **Tests for Agent Execution:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for agent execution in `tests/test_agent_run.py`. Mock LLM calls and Supabase interactions. Test input/output and basic flow execution."
   - **Vibe Code:** Run tests. `git add tests/test_agent_run.py && git commit -m "Add tests for agent execution"`
@@ -146,8 +179,9 @@ This document outlines the step-by-step plan for developing and deploying the Aa
     - Consider using `langchain` for parsing and structured output."
   - **Vibe Code:** `git add app/services/nl_agent_generator.py && git commit -m "Natural language agent generator service"`
 - [ ] **NL Agent API Endpoints:**
-  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/nl_agents.py` with `POST /nl-agents/create` and `POST /nl-agents/{agent_id}/refine` routes. These should call the `nl_agent_generator` service. Protect with authentication."
-  - **Vibe Code:** `git add app/api/v1/nl_agents.py && git commit -m "Natural language agent creation API endpoints"`
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/nl_agents/routes.py` with `POST /nl-agents/create` and `POST /nl-agents/{agent_id}/refine` routes. These should call the `nl_agent_generator` service. Protect with authentication."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/nl_agents/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/nl_agents/routes.py app/api/v1/nl_agents/__init__.py && git commit -m "Implement natural language agent creation API endpoints"`
 - [ ] **Tests for NL Agent Creation:**
   - **Cursor AI:** Ask Cursor: "Write high-level integration tests for natural language agent creation in `tests/test_nl_agents.py`. Mock LLM calls and test various descriptions."
   - **Vibe Code:** Run tests. `git add tests/test_nl_agents.py && git commit -m "Add tests for natural language agent creation"`

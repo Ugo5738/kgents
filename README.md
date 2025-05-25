@@ -89,8 +89,8 @@ docker-compose up --build
 
 ---
 
-_Happy agent-building!_
-
 ## Architecture & Deployment Guide
 
 For an in-depth overview of our service architecture, containerization, Kubernetes deployment, and migration path to standalone microservices, see [Architecture & Deployment Overview](docs/architecture.md).
+
+_Happy agent-building!_

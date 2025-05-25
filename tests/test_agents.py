@@ -16,7 +16,9 @@ def dummy_agent_crud(monkeypatch):
     """Stub agent CRUD functions for testing without Supabase."""
     storage: dict[int, AgentResponse] = {}
 
-    async def dummy_create_agent(user_id: int, agent_create: AgentCreate) -> AgentResponse:
+    async def dummy_create_agent(
+        user_id: int, agent_create: AgentCreate
+    ) -> AgentResponse:
         agent = AgentResponse(
             id=1,
             user_id=user_id,
@@ -33,7 +35,9 @@ def dummy_agent_crud(monkeypatch):
     async def dummy_get_all_agents_by_user(user_id: int) -> list[AgentResponse]:
         return [a for a in storage.values() if a.user_id == user_id]
 
-    async def dummy_update_agent(agent_id: int, agent_update: AgentUpdate) -> AgentResponse | None:
+    async def dummy_update_agent(
+        agent_id: int, agent_update: AgentUpdate
+    ) -> AgentResponse | None:
         existing = storage.get(agent_id)
         if not existing:
             return None
@@ -44,15 +48,19 @@ def dummy_agent_crud(monkeypatch):
     async def dummy_delete_agent(agent_id: int) -> None:
         storage.pop(agent_id, None)
 
-    import app.api.v1.agents as agents_module
-    monkeypatch.setattr(agents_module, 'crud_create_agent', dummy_create_agent)
-    monkeypatch.setattr(agents_module, 'crud_get_agent_by_id', dummy_get_agent_by_id)
-    monkeypatch.setattr(agents_module, 'crud_get_all_agents', dummy_get_all_agents_by_user)
-    monkeypatch.setattr(agents_module, 'crud_update_agent', dummy_update_agent)
-    monkeypatch.setattr(agents_module, 'crud_delete_agent', dummy_delete_agent)
+    import app.api.v1.agents.routes as agents_module
+
+    monkeypatch.setattr(agents_module, "crud_create_agent", dummy_create_agent)
+    monkeypatch.setattr(agents_module, "crud_get_agent_by_id", dummy_get_agent_by_id)
+    monkeypatch.setattr(
+        agents_module, "crud_get_all_agents", dummy_get_all_agents_by_user
+    )
+    monkeypatch.setattr(agents_module, "crud_update_agent", dummy_update_agent)
+    monkeypatch.setattr(agents_module, "crud_delete_agent", dummy_delete_agent)
 
     # Override get_current_user_id dependency to always return user_id=1
-    from app.api.v1.agents import get_current_user_id
+    from app.api.v1.agents.routes import get_current_user_id
+
     app.dependency_overrides[get_current_user_id] = lambda: 1
 
 
@@ -97,4 +105,4 @@ def test_agent_crud_flow():
 
         # Ensure deletion
         resp = client.get("/agents/1")
-        assert resp.status_code == 404 
+        assert resp.status_code == 404
