@@ -1,0 +1,20 @@
+# auth_service/docker-compose.prod.yml
+services:
+  auth_service_prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8001:8000"
+    env_file:
+      - ../.env # Uses the root .env file
+    networks:
+      - kgents_network
+      - supabase_network_kgents
+
+networks:
+  kgents_network:
+    name: kgents_network
+    driver: bridge
+  supabase_network_kgents:
+    external: true

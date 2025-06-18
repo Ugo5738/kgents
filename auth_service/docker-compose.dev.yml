@@ -1,0 +1,24 @@
+# auth_service/docker-compose.dev.yml
+services:
+  auth_service_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./src:/app/src
+      - ./alembic:/app/alembic
+      - ./tests:/app/tests
+    env_file:
+      - ../.env # Load from the root .env file
+    networks:
+      - kgents_network
+      - supabase_network_kgents # Connect to Supabase network from root compose
+
+networks:
+  kgents_network:
+    name: kgents_network
+    driver: bridge
+  supabase_network_kgents:
+    external: true
