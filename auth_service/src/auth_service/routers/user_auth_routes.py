@@ -324,13 +324,13 @@ async def request_password_reset(
             exc_info=True,
         )
 
-        # Log failed password reset request
+        # Log failed password reset request (no user_id since this is unauthenticated)
         log_security_event(
             event_type="password_reset_failure",
-            user_id=current_user.id,
             request=request,
             status="failure",
             detail=f"API error: {e.message}",
+            additional_data={"email": payload.email}
         )
 
         # Handle specific Supabase errors if necessary, e.g., rate limiting
@@ -357,13 +357,13 @@ async def request_password_reset(
             exc_info=True,
         )
 
-        # Log failed password reset due to unexpected error
+        # Log failed password reset due to unexpected error (no user_id since this is unauthenticated)
         log_security_event(
             event_type="password_reset_failure",
-            user_id=current_user.id,
             request=request,
             status="failure",
             detail="Unexpected error",
+            additional_data={"email": payload.email}
         )
 
         raise HTTPException(

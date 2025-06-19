@@ -9,16 +9,20 @@ from unittest.mock import AsyncMock
 class MockSupabaseResponse:
     """Mock response from Supabase authentication endpoints."""
     def __init__(self):
-        # Create a user object that matches SupabaseUser schema
+        # Create a user object that matches SupabaseUser schema with all required fields
         User = type('User', (), {
             'id': '11111111-1111-4111-a111-111111111111',
             'email': 'test@example.com',
             'app_metadata': {},
             'user_metadata': {'username': 'test_user'},
             'phone': '',
+            'phone_confirmed_at': None, # Add phone_confirmed_at field
             'email_confirmed_at': '2025-06-19T00:00:00Z',
+            'confirmed_at': '2025-06-19T00:00:00Z', # Add confirmed_at field
+            'last_sign_in_at': '2025-06-19T00:00:00Z', # Add last_sign_in_at field
             'created_at': '2025-06-19T00:00:00Z',
             'updated_at': '2025-06-19T00:00:00Z',
+            'identities': [], # Add identities field
             'aud': 'authenticated',
             'role': 'authenticated',
             'model_dump': lambda self: {
@@ -27,9 +31,13 @@ class MockSupabaseResponse:
                 'app_metadata': self.app_metadata,
                 'user_metadata': self.user_metadata,
                 'phone': self.phone,
+                'phone_confirmed_at': self.phone_confirmed_at,
                 'email_confirmed_at': self.email_confirmed_at,
+                'confirmed_at': self.confirmed_at,
+                'last_sign_in_at': self.last_sign_in_at,
                 'created_at': self.created_at,
                 'updated_at': self.updated_at,
+                'identities': self.identities,
                 'aud': self.aud,
                 'role': self.role,
             }
@@ -71,9 +79,17 @@ async def mock_supabase_client():
     mock_auth_response = MockSupabaseResponse()
     mock_auth_response.user.id = test_user_id
     
-    # Configure the sign_up method to return our mock response
+    # Configure the auth methods to return our mock response
     mock_auth = AsyncMock()
     mock_auth.sign_up = AsyncMock(return_value=mock_auth_response)
+    
+    # Create a UserResponse class that has a user attribute to match expected structure
+    UserResponse = type('UserResponse', (), {})
+    user_response = UserResponse()
+    user_response.user = mock_auth_response.user
+    
+    # Properly configure get_user to return a response with nested user attribute
+    mock_auth.get_user = AsyncMock(return_value=user_response)
     
     # Create the main Supabase client mock
     mock_client = AsyncMock()
@@ -81,6 +97,9 @@ async def mock_supabase_client():
     
     # Add the test user ID as an attribute so tests can access it
     mock_client.test_user_id = test_user_id
+    
+    # Add the user object to the mock client for direct access in tests
+    mock_client.user = mock_auth_response.user
     
     print(f"\nUsing mock Supabase client with test user ID: {test_user_id}")
     
