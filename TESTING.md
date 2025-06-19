@@ -29,6 +29,10 @@ service_name/
 │   │   └── test_services.py
 │   ├── integration/       # Service integration tests
 │   │   └── test_*_flow.py
+│   ├── fixtures/          # Modular test fixtures
+│   │   ├── client.py      # Test client fixtures
+│   │   ├── db.py          # Database fixtures
+│   │   └── helpers.py     # Helper functions for tests
 │   ├── mocks.py           # Common mock classes/functions
 │   └── conftest.py        # Pytest fixtures
 └── src/
@@ -67,14 +71,14 @@ async def test_get_user_profile():
     # Arrange
     mock_db_session = AsyncMock()
     mock_profile = Profile(...)
-    
+
     # Configure mock to return our test profile
     mock_db_session.execute.return_value = AsyncMock()
     mock_db_session.execute.return_value.scalar_one_or_none.return_value = mock_profile
-    
+
     # Act
     result = await get_user_profile(user_id=uuid.uuid4(), db_session=mock_db_session)
-    
+
     # Assert
     assert result.username == mock_profile.username
     # ...more assertions
@@ -104,13 +108,13 @@ async def test_user_registration_db_integration(test_db_session):
     # Arrange
     client = AsyncClient(app=app, base_url="http://test")
     user_data = {...}
-    
+
     # Act
     response = await client.post("/api/v1/auth/users/register", json=user_data)
-    
+
     # Assert API response
     assert response.status_code == 201
-    
+
     # Verify database state
     result = await test_db_session.execute(
         select(Profile).where(Profile.email == user_data["email"])
@@ -151,14 +155,14 @@ Example of a custom mock class:
 ```python
 class MockSupabaseClient:
     """Mock Supabase client for testing auth flows."""
-    
+
     def __init__(self):
         self.auth = MockSupabaseAuth()
         self.table = lambda name: MockSupabaseTable(name)
-    
+
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 ```
@@ -167,10 +171,41 @@ class MockSupabaseClient:
 
 For database-related tests:
 
-1. **Test Database Setup**: Create separate test databases or schemas
-2. **Migration Testing**: Ensure all migrations apply correctly
-3. **Rollbacks**: Use transaction rollbacks to keep tests isolated
-4. **Fixtures**: Use pytest fixtures to share database sessions
+1. **Test Database Setup**: Create separate test databases or schemas using the provided utility script
+2. **Environment Configuration**: Use a service-specific `.env.test` file to configure test database connections
+3. **Migration Testing**: Ensure all migrations apply correctly
+4. **Rollbacks**: Use transaction rollbacks to keep tests isolated
+5. **Fixtures**: Use pytest fixtures to share database sessions
+
+### Test Database Configuration Example
+
+```python
+# In tests/fixtures/db.py
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
+
+# Create a PostgreSQL engine for testing using settings from .env.test
+engine = create_async_engine(
+    settings.DATABASE_URL,  # From .env.test
+    poolclass=NullPool,
+    echo=False,
+    future=True
+)
+
+# Session fixture with transaction rollback for test isolation
+@pytest_asyncio.fixture
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    connection = await engine.connect()
+    trans = await connection.begin()  # Begin transaction
+    session = TestingSessionLocal(bind=connection)
+
+    try:
+        yield session
+    finally:
+        await session.close()
+        await trans.rollback()  # Roll back transaction after test
+        await connection.close()
+```
 
 ## Testing Different Service Types
 
@@ -272,3 +307,59 @@ We manage test environments to ensure consistency:
 - **Test Clarity**: Make test failures easy to understand
 - **Test Maintenance**: Regularly review and update tests
 - **Test Documentation**: Document test coverage and gaps
+
+## Test Database Management
+
+We use dedicated test databases for each service to ensure test isolation and prevent interference with development data.
+
+### Test Database Creation
+
+We provide a utility script to easily create test databases for each service:
+
+```bash
+# Create a test database for a service
+./scripts/create_test_db.sh service_name
+
+# Example: Create a test database for auth_service
+./scripts/create_test_db.sh auth_service
+
+# With custom connection string
+./scripts/create_test_db.sh -c 'postgresql://user:pass@host:port/postgres' service_name
+
+# Get help and usage information
+./scripts/create_test_db.sh --help
+```
+
+The script will generate a database named `{service_name}_test_db` and provide the connection string to use in your `.env.test` file.
+
+### Usage Workflow
+
+When creating a new service that requires database access, follow these steps:
+
+1. Create the test database:
+   ```bash
+   # From the project root
+   ./scripts/create_test_db.sh my_new_service
+   ```
+
+2. Copy the connection string from the output and add it to your service's `.env.test` file:
+   ```
+   DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/my_new_service_test_db
+   ```
+
+3. Configure your test fixtures to use this database via the environment variables.
+
+### Environment Configuration
+
+Each service should contain a `.env.test` file specifically for test configuration, which should include:
+
+```
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/service_name_test_db
+```
+
+### Best Practices
+
+- **Never use production databases for testing**: Always create separate test databases
+- **Use transaction rollbacks**: Wrap each test in a transaction that gets rolled back
+- **Reset between test runs**: If needed, you can recreate the test database between CI runs
+- **Migrations**: Ensure your test setup applies all necessary migrations before tests run
