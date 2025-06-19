@@ -1,101 +1,46 @@
 services:
-  supabase_db:
-    image: supabase/postgres:14.5.0
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - supa_db_data:/var/lib/postgresql/data
-
-  supabase_api:
-    image: postgrest/postgrest:latest
-    depends_on:
-      - supabase_db
-    environment:
-      PGRST_DB_URI: postgres://postgres:postgres@supabase_db:5432/postgres
-      PGRST_DB_SCHEMA: public
-      PGRST_DB_ANON_ROLE: anon
-    ports:
-      - "3000:3000"
-
   auth_service:
-    build:
-      context: .
-      dockerfile: app/api/v1/auth/Dockerfile
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
-    ports:
-      - "8001:8000"
-    depends_on:
-      - supabase_api
+    extends:
+      file: auth_service/docker-compose.dev.yml
+      service: auth_service_dev
 
-  agents_service:
-    build:
-      context: .
-      dockerfile: app/api/v1/agents/Dockerfile
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
+  agent_management_service:
+    extends:
+      file: agent_management_service/docker-compose.dev.yml
+      service: agent_management_service_dev
     ports:
       - "8002:8000"
-    depends_on:
-      - supabase_api
 
-  tools_service:
-    build:
-      context: .
-      dockerfile: app/api/v1/tools/Dockerfile
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
+  tool_registry_service:
+    extends:
+      file: tool_registry_service/docker-compose.dev.yml
+      service: tool_registry_service_dev
     ports:
       - "8003:8000"
-    depends_on:
-      - supabase_api
 
   nl_agents_service:
-    build:
-      context: .
-      dockerfile: app/api/v1/nl_agents/Dockerfile
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
+    extends:
+      file: nl_agents_service/docker-compose.dev.yml
+      service: nl_agents_service_dev
     ports:
       - "8004:8000"
-    depends_on:
-      - supabase_api
-
-  run_service:
-    build:
-      context: .
-      dockerfile: app/api/v1/run/Dockerfile
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
-    ports:
-      - "8005:8000"
-    depends_on:
-      - supabase_api
 
   langflow_ide:
     image: langflowai/langflow:latest
-    env_file:
-      - .env
-    environment:
-      SUPABASE_URL: http://supabase_api:3000
     ports:
       - "7860:7860"
-    depends_on:
-      - supabase_api
+    env_file: .env
+    environment:
+      # This connects Langflow to the local Supabase Postgres instance
+      LANGFLOW_DATABASE_URL: "postgresql://postgres:postgres@supabase_db_kgents:5432/postgres"
+    networks:
+      - kgents_network
+      - supabase_network_kgents
 
-volumes:
-  supa_db_data: {}
+networks:
+  kgents_network:
+    name: kgents_network
+    driver: bridge
+  supabase_network_kgents:
+    external: true
+    name: kgents_default # Default network name created by `supabase start`

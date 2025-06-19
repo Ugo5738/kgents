@@ -1,8 +1,24 @@
-# Python
+# .gitignore (in project root)
+
+# Environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.venv
+env.bak/
+venv.bak/
+env/
+ENV/
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Build artifacts
 .Python
 build/
 develop-eggs/
@@ -20,13 +36,6 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 .python-version
 
 # FastAPI
@@ -36,6 +45,8 @@ htmlcov/
 .tox/
 .nox/
 .hypothesis/
+nosetests.xml
+coverage.xml
 
 # Frontend
 node_modules/
@@ -68,46 +79,9 @@ coverage/
 *.sublime-workspace
 *.sublime-project
 
-# AI/LLM specific
-*.pt
-*.pth
-*.onnx
-*.bin
-*.gguf
-*.ggml
-*.safetensors
-wandb/
-runs/
-logs/
-checkpoints/
-# models/
-# datasets/
-# embeddings/
-# vector_store/
-*.npy
-*.npz
-*.h5
-*.hdf5
-*.pkl
-*.pickle
-*.joblib
-*.jsonl
-*.json.gz
-*.parquet
-*.arrow
-*.feather
-*.csv
-*.tsv
-*.txt
-!requirements.txt
-!README.txt
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
 # Logs and databases
 *.log
+logs/
 *.sqlite
 *.db
 *.sqlite3
@@ -115,3 +89,8 @@ checkpoints/
 # System Files
 .DS_Store
 Thumbs.db
+
+# Supabase local dev files
+supabase/.branches/
+supabase/.temp/
+supabase/db/

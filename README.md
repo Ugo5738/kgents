@@ -2,15 +2,17 @@
 
 ## Project Overview
 
-Kgents is an Agent-as-a-Service platform that enables you to visually build, deploy, and manage autonomous AI agents. It combines Langflow for workflow design, FastAPI for serving APIs, and Supabase for persistent storage and real-time data.
+Kgents is an Agent-as-a-Service platform that enables you to visually build, deploy, and manage autonomous AI agents. It combines Langflow for workflow design, a suite of FastAPI microservices for backend logic, and Supabase for authentication, persistent storage, and real-time capabilities.
 
 ## Tech Stack
 
-- **Langflow**: Drag-and-drop AI workflow builder
-- **FastAPI**: High-performance Python backend framework
-- **Supabase**: Open-source Postgres database, authentication, and real-time APIs
-- **Docker**: Containerization for consistent development and deployment
-- **Kubernetes / Serverless**: Orchestration and scalable deployment options
+- **Backend Framework**: FastAPI for high-performance, asynchronous services.
+- **Agent Workflow Design**: Langflow, integrated as the visual agent builder.
+- **Database & Auth**: Supabase, providing PostgreSQL, pgvector, and user authentication.
+- **Containerization**: Docker for creating consistent service images.
+- **Local Orchestration**: Docker Compose for running the multi-service environment locally.
+- **Deployment**: Kubernetes (e.g., AWS EKS, GKE, or AKS) for scalable production deployment.
+- **CI/CD**: GitHub Actions for automated building, testing, and deployment of services.
 
 ## Key Features
 
@@ -18,14 +20,25 @@ Kgents is an Agent-as-a-Service platform that enables you to visually build, dep
 - **Multi-Agent Support**: Run and coordinate multiple agents concurrently for complex tasks
 - **Natural Language Agent Creation**: Define and configure agents using plain English prompts
 
+## Architecture
+
+The platform is built on a microservice architecture, where each service has a distinct responsibility. This approach ensures scalability, resilience, and maintainability.
+
+- **auth_service**: Manages user registration, login, profiles, and API key generation. It acts as the central authentication authority.
+- **agent_management_service**: Handles the lifecycle of agents, including creating, updating, and storing their definitions (Langflow JSON).
+- **tool_registry_service**: Manages the registration and storage of custom tools that agents can use.
+- **agent_deployment_service**: Orchestrates the deployment of agent flows into runnable, containerized services.
+- **agent_runtime_service**: The execution environment where deployed agents run.
+- **(Future Services)**: nl_agent_service, observability_service, etc.
+
 ## Setup Instructions
 
 ### Prerequisites
 
 - Docker & Docker Compose
 - Node.js (>=14.x)
-- Python 3.9+
-- Supabase account (for hosted database and authentication)
+- Python 3.12+ and Poetry
+- Supabase CLI and Supabase account (for hosted database and authentication)
 
 ### Environment Variables
 

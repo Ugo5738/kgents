@@ -1,0 +1,23 @@
+# tool_registry_service/docker-compose.test.yml
+services:
+  tool_registry_service_test:
+    build:
+      context: .
+      dockerfile: Dockerfile # Can reuse dev Dockerfile for testing
+    environment:
+      - ENVIRONMENT=testing
+      # Override database URL for an isolated test database
+      - TOOL_REGISTRY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@supabase_db_kgents:5432/test_tool_db
+    env_file:
+      - ../.env
+    networks:
+      - kgents_network
+      - supabase_network_kgents
+    command: ["pytest", "-v", "tests/"]
+
+networks:
+  kgents_network:
+    name: kgents_network
+    driver: bridge
+  supabase_network_kgents:
+    external: true

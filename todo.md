@@ -102,8 +102,6 @@ This document outlines the step-by-step plan for developing and deploying the Aa
 - [x] **Write `docker-compose.yml`**
 
   - It should include each microservice:
-    - `supabase_db` (PostgreSQL + pgvector for local Supabase emulation)
-    - `supabase_api` (PostgREST or Supabase CLI)
     - `auth_service` (build: `app/api/v1/auth`, ports: 8001:8000)
     - `agents_service` (build: `app/api/v1/agents`, ports: 8002:8000)
     - `tools_service` (build: `app/api/v1/tools`, ports: 8003:8000)
@@ -113,7 +111,7 @@ This document outlines the step-by-step plan for developing and deploying the Aa
   - Configure `env_file` + necessary `environment` in each
   - (Optional) mount local code for hot-reload
 
-- [ ] **Install Supabase CLI for Local Development**
+- [x] **Install Supabase CLI for Local Development**
 
   - Install via npm: `npm install -g supabase` or via Homebrew: `brew install supabase/tap/supabase`
   - Run `supabase init` in the project root to scaffold Supabase services

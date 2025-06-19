@@ -115,3 +115,10 @@ checkpoints/
 # System Files
 .DS_Store
 Thumbs.db
+
+# Supabase CLI local files (if any generated in root that aren't needed in image)
+.supabase/
+
+# Large directories not needed in the image builds
+vendor/ # <--- IMPORTANT: Exclude the vendor directory
+node_modules/ # If you have a frontend and its deps here
