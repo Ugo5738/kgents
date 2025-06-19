@@ -5,20 +5,25 @@ alwaysApply: false
 ---
 # Project-Specific Rules: Kgents (Agent-as-a-Service) Platform
 
-## Project Context
+## Project Context: "Kgents" Agent-as-a-Service Platform
 This project is an Agent-as-a-Service (AaaS) platform where users can quickly build and deploy AI agents, including multi-agent systems, potentially from natural language descriptions. The platform aims for rapid development and a seamless user experience.
+You have been provided with the complete codebase, Product Requirements Document (prd.md), and other planning documents. Here is a summary of the critical context:
 
-## Core Tech Stack
-- **Frontend (Agent Builder):** `Langflow` (visual, low-code)
+### Vision: Democratize AI agent creation through a low-code, scalable, and secure platform.
+
+### Core Architecture: Microservices. The key services are auth_service, agent_management_service, tool_registry_service, agent_deployment_service, and agent_runtime_service. Maintain strict separation of concerns between them.
+
+### Primary Technologies:
+- **Frontend (Agent Builder):** `Langflow` (visual, low-code). Langflow is the primary visual builder. The system also integrates with CrewAI and AutoGen.
 - **Backend (Platform APIs):** `FastAPI` (`Python`)
-- **Database:** `Supabase` (`PostgreSQL` + `pgvector`) for platform data and agent memory
+- **Database:** `Supabase` (`PostgreSQL` + `pgvector`) for platform data and agent memory. You must use Supabase's Row Level Security (RLS) for multi-tenancy.
 - **Deployment:** `Docker` (containerization), Cloud-Native (`Kubernetes`/`Serverless`)
 - **LLMs:** LLM-agnostic approach (support for `OpenAI`, `Claude`, `Gemini`, `Mistral`, `LLaMA`)
 - **Monitoring/Observability:** `LangSmith`/`Langfuse`
 - **Dependency Management:** `Poetry`
 - **Database Migrations:** `Alembic`
 - **User Management:** `fastapi-users` (for user management)
-- **Authentication:** `fastapi-jwt-auth` (for authentication)
+- **Authentication:** JWT-based, managed by the auth_service and Supabase.
 - **Rate Limiting:** `fastapi-limiter`
 - **Pagination:** `fastapi-pagination`
 - **Email Sending:** `fastapi-mail` (if needed for user verification/notifications)

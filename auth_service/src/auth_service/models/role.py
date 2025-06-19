@@ -25,18 +25,19 @@ class Role(Base):
     )
 
     # Relationships
+    # Properly define overlaps to address all relationship conflicts
     users = relationship(
         "Profile", 
         secondary="user_roles", 
         back_populates="roles", 
-        overlaps="user_roles"
+        overlaps="user_roles,role,user_profile"
     )
 
     user_roles = relationship(
         "UserRole",
         back_populates="role",
         cascade="all, delete-orphan",
-        overlaps="users",
+        overlaps="users,profile_role,profile,user_profile"
     )
 
     app_clients = relationship(

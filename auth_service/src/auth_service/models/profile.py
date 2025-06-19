@@ -49,9 +49,17 @@ class Profile(Base):
     # Add the inverse relationship to the Role model
     # This tells SQLAlchemy how a Profile is related to Roles through the 'user_roles' table.
     # The 'back_populates="users"' matches the relationship defined in the Role model.
-    roles = relationship("Role", secondary="user_roles", back_populates="users", overlaps="user_roles")
+    roles = relationship(
+        "Role", 
+        secondary="user_roles", 
+        back_populates="users", 
+        overlaps="user_roles,role"
+    )
     user_roles = relationship(
-        "UserRole", back_populates="user_profile", cascade="all, delete-orphan", overlaps="roles"
+        "UserRole", 
+        back_populates="user_profile", 
+        cascade="all, delete-orphan", 
+        overlaps="roles,user_profile"
     )
 
     # Add foreign key constraint with use_alter and post_create

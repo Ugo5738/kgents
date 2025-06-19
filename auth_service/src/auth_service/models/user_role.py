@@ -40,8 +40,18 @@ class UserRole(Base):
     )
 
     # Relationships
-    role = relationship("Role", back_populates="user_roles", overlaps="users,profile_role")
-    user_profile = relationship("Profile", back_populates="user_roles", overlaps="roles,user_role")
+    # The overlaps parameter is used to acknowledge that these relationships may copy
+    # the same columns as other relationships in related models.
+    role = relationship(
+        "Role", 
+        back_populates="user_roles", 
+        overlaps="users,profile_role,profiles"
+    )
+    user_profile = relationship(
+        "Profile", 
+        back_populates="user_roles", 
+        overlaps="roles,user_role,roles"
+    )
 
     def __repr__(self):
         return f"<UserRole(user_id='{self.user_id}', role_id='{self.role_id}')>"
