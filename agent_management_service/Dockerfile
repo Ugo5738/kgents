@@ -28,4 +28,4 @@ COPY . .
 EXPOSE 8000
 
 # Start the development server with hot-reloading
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "src.agent_management_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

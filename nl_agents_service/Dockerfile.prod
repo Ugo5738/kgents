@@ -48,4 +48,4 @@ USER app
 EXPOSE 8000
 
 # Command to run the production server with multiple workers
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "src.nl_agents_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
