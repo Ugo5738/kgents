@@ -44,15 +44,13 @@ engine: AsyncEngine = create_async_engine(
     # on a connection before it's checked out from the pool. If the connection is dead,
     # it's discarded and a new one is established. This eliminates most connection errors.
     pool_pre_ping=True,
-    # Connection arguments passed directly to the asyncpg driver.
+    # Connection arguments passed directly to the psycopg v3 driver
     connect_args={
-        # Server settings for asyncpg
-        "server_settings": {
-            "application_name": "auth_service",
-            "timezone": "UTC",
-            # Only apply statement_timeout in non-testing environments
-            **({}if settings.ENVIRONMENT == "testing" else {"statement_timeout": "5000"}),  # 5 seconds in ms
-        }
+        "application_name": "auth_service",
+        # For psycopg v3, we use options parameter instead of server_settings
+        "options": "-c timezone=UTC" + (
+            "" if settings.ENVIRONMENT == "testing" else " -c statement_timeout=5000"
+        ),
     },
 )
 

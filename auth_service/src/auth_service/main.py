@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import os
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -312,7 +313,7 @@ async def health(
     response = {
         "status": "ok",
         "version": app.version,
-        "environment": str(settings.environment),
+        "environment": str(settings.ENVIRONMENT),
         "timestamp": current_time.isoformat(),
         "components": {"api": {"status": "ok"}},
     }
@@ -466,7 +467,7 @@ async def detailed_health(
     response = {
         "status": "ok",
         "version": app.version,
-        "environment": str(settings.environment),
+        "environment": str(settings.ENVIRONMENT),
         "timestamp": current_time.isoformat(),
         "uptime": (
             time.time() - app.startup_time if hasattr(app, "startup_time") else None
@@ -479,9 +480,10 @@ async def detailed_health(
 
     # Always perform database check for detailed health
     try:
-        result = await db.execute(text("SELECT 1"))
-        row = await result.first()
-        if row and getattr(row, "1", None) == 1:
+        # Execute query and fetch result properly for async SQLAlchemy
+        result = await db.execute(text("SELECT 1 as value"))
+        row = result.fetchone()
+        if row and row.value == 1:
             response["components"]["database"] = {"status": "ok"}
         else:
             response["components"]["database"] = {
@@ -507,8 +509,9 @@ async def detailed_health(
             }
             response["status"] = "degraded"
         else:
-            # Check Supabase URL configuration
-            supabase_url = getattr(supabase_general_client, "_url", "")
+            # Check Supabase URL configuration directly from settings
+            # instead of trying to extract it from the client which may vary by implementation
+            supabase_url = settings.SUPABASE_URL
             if not supabase_url or not supabase_url.startswith("http"):
                 response["components"]["supabase"] = {
                     "status": "error",

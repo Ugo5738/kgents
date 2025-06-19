@@ -30,6 +30,7 @@ dependencies = [
   # External Services and Utilities
   "supabase[async]>=2.5.0,<3.0.0", # Switched to the official async client
   "fastapi-limiter>=0.1.6,<1.0.0",
+  "slowapi>=0.1.9,<1.0.0", # Required for rate limiting
 ]
 
 # Modern way to declare optional dependency groups like 'dev'.
@@ -65,6 +66,7 @@ python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 supabase = {extras = ["async"], version = "^2.5.0"}
 fastapi-limiter = "^0.1.6"
+slowapi = "^0.1.9"
 
 
 # A comprehensive set of development dependencies

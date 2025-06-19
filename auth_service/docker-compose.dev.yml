@@ -10,11 +10,30 @@ services:
       - ./src:/app/src
       - ./alembic:/app/alembic
       - ./tests:/app/tests
+      - ./init_database.sh:/app/init_database.sh
     env_file:
-      - ../.env # Load from the root .env file
+      - ./.env.dev # Load development environment variables
     networks:
       - kgents_network
       - supabase_network_kgents # Connect to Supabase network from root compose
+    depends_on:
+      db_init:
+        condition: service_completed_successfully
+
+  # Database initialization service
+  db_init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /app/init_database.sh
+    volumes:
+      - ./src:/app/src
+      - ./init_database.sh:/app/init_database.sh
+    env_file:
+      - ./.env.dev
+    networks:
+      - kgents_network
+      - supabase_network_kgents
 
 networks:
   kgents_network:

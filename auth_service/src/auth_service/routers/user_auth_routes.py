@@ -330,7 +330,7 @@ async def request_password_reset(
             request=request,
             status="failure",
             detail=f"API error: {e.message}",
-            additional_data={"email": payload.email}
+            additional_data={"email": payload.email},
         )
 
         # Handle specific Supabase errors if necessary, e.g., rate limiting
@@ -363,7 +363,7 @@ async def request_password_reset(
             request=request,
             status="failure",
             detail="Unexpected error",
-            additional_data={"email": payload.email}
+            additional_data={"email": payload.email},
         )
 
         raise HTTPException(

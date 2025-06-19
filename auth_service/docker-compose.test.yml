@@ -7,9 +7,9 @@ services:
     environment:
       - ENVIRONMENT=testing
       # Override database URL for an isolated test database
-      - AUTH_SERVICE_DATABASE_URL=postgresql+asyncpg://postgres:postgres@supabase_db_kgents:5432/test_user_db
+      - AUTH_SERVICE_DATABASE_URL=postgresql+asyncpg://postgres:postgres@supabase_db_kgents:54322/auth_test_db
     env_file:
-      - ../.env
+      - ./.env.dev
     networks:
       - kgents_network
       - supabase_network_kgents
