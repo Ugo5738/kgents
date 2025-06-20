@@ -4,7 +4,7 @@ from sqlalchemy import Column, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from auth_service.db import Base
+from src.auth_service.db import Base
 
 
 class Role(Base):

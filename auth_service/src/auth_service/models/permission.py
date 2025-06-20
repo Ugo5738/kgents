@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 
-from auth_service.db import Base
+from src.auth_service.db import Base
 
 class Permission(Base):
     __tablename__ = "permissions"

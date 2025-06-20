@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -7,20 +9,30 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+# Add the parent directory to sys.path to allow imports
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_dir)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Import SQLAlchemy components
+from src.auth_service.db import Base
+
+# Import all models to ensure they're registered with Base.metadata
+# We're importing the __init__.py which should import all models
+import src.auth_service.models
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# Set target_metadata to our SQLAlchemy Base.metadata for autogenerate support
+target_metadata = Base.metadata
+
+# We'll use the database URL from alembic.ini directly
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

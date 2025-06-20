@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, func, ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
-from auth_service.db import Base
+from src.auth_service.db import Base
 
 class RolePermission(Base):
     __tablename__ = "role_permissions"
