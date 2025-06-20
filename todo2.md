@@ -1,144 +1,266 @@
 # Project Todo List: Kgents (Agent-as-a-Service) Platform
 
-This plan refactors the Kgents platform into a scalable, multi-service architecture, following the framework's principles. Each service will be built and deployed independently.
+This document outlines the step-by-step plan for developing and deploying the AaaS platform. Follow the vibe coding principles outlined in `./.cursor/rules.md`.
 
-## Phase 1: Foundational `auth_service`
+## Phase 1: Foundation & Core Services (MVP)
 
-> **Goal:** Create the central authentication and authorization service, acting as the security backbone for the entire platform.
+### 1.1. Project Setup & Initial Environment
 
-1.  **Initialize Service Structure & Configuration:**
+- [x] **Initialize Git Repository:**
+  - `git init` in project root.
+  - **Cursor AI:** Ask Cursor: "Generate a comprehensive `.gitignore` for a Python FastAPI project with a frontend, including common AI/LLM-related temporary files and environment variables."
+  - **Cursor AI:** Ask Cursor: "Generate a README.md for Kgents an Agent-as-a-Service platform. Include sections for project overview, tech stack (Langflow, FastAPI, Supabase, Docker, Kubernetes/Serverless), key features (visual agent builder, multi-agent support, natural language agent creation), and setup instructions."
+  - **Cursor AI:** Create `./.cursor/rules/rules.mdc` (content provided in PRD section above).
+  - **Vibe Code:** `git add . && git commit -m "Initial project setup and Cursor rules"`
+- [x] **Clone Core Open-Source Repositories (for future modifications & context):**
+  - **Action:** Create a `vendor/` directory in your project root to store these.
+  - **Cursor AI:** Ask Cursor: "Generate git clone commands for the latest stable versions of `langflow-ai/langflow`, `langchain-ai/langchain`, `joaomdmoura/crewai`, and `microsoft/autogen` into the `vendor/` directory."
+    ```bash
+    git clone https://github.com/langflow-ai/langflow.git vendor/langflow
+    git clone https://github.com/langchain-ai/langchain.git vendor/langchain
+    git clone https://github.com/joaomdmoura/crewai.git vendor/crewai
+    git clone https://github.com/microsoft/autogen.git vendor/autogen
+    ```
+  - **Vibe Code:** `git add vendor/ && git commit -m "Cloned core open-source repositories for future reference and modification"`
+- [x] **Python Environment & Poetry Setup:**
+  - Install Poetry: `pip install poetry`
+  - `poetry init --no-interaction`
+  - **Cursor AI:** Ask Cursor: "Add `fastapi`, `uvicorn`, `python-multipart`, `sqlalchemy`, `psycopg2-binary`, `supabase-py`, `langchain`, `langchain-community`, `langchain-openai`, `langsmith`, `langfuse`, `pydantic`, `python-dotenv`, `uvloop`, `httptools`, `fastapi-users`, `fastapi-jwt-auth`, `fastapi-limiter`, `fastapi-pagination`, `fastapi-mail`, `fastapi-cache`, `alembic`, `ruff`, `pytest` to `pyproject.toml` as dependencies. Split our dev-dependencies where necessary"
+  - `poetry install --no-interaction --no-root`
+  - **Vibe Code:** `git add pyproject.toml poetry.lock && git commit -m "Setup Poetry and initial dependencies"`
+- [x] **Supabase Project & Schema Setup:**
+  - **External:** Create a new Supabase project. Enable `pgvector` extension.
+  - **Cursor AI:** Ask Cursor: "Generate the SQL schema for `users`, `agents`, `tools`, and `agent_memories` tables, including RLS policies, as defined in `prd.md`. Save this to `supabase_schema.sql`."
+  - **External:** Run `supabase_schema.sql` in Supabase SQL Editor.
+  - **Cursor AI:** Ask Cursor: "Create `.env.example` with placeholders for `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `JWT_SECRET_KEY`, `FIRST_SUPERUSER_EMAIL`, `FIRST_SUPERUSER_PASSWORD`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_PORT`, `MAIL_SERVER`, `MAIL_TLS`, `MAIL_SSL`, `USE_CREDENTIALS`, `VALIDATE_CERTS`."
+  - Create your actual `.env` file and fill in credentials. Do **NOT** commit `.env`.
+  - **Vibe Code:** `git add supabase_schema.sql .env.example && git commit -m "Add Supabase schema and env example"`
 
-    - Create directories: `auth_service/`, `auth_service/src/`, `auth_service/tests/`, `auth_service/alembic/`.
-    - Create config files: `pyproject.toml`, `pytest.ini`, `gitignore`, `.dockerignore`, `pre-commit-config.yaml`.
-    - Create environment files: `.env.example`, `.env.dev`, `.env.test`, `.env.prod`.
-    - Create documentation stub: `auth_service/README.md` to document its purpose, API, and setup.
+### 1.2. User Management Microservice (User Service)
 
-2.  **Setup Python Project with Poetry:**
+- [x] **FastAPI Core Setup:**
+  - **Cursor AI:** Ask Cursor: "Create `main.py` in the root. It should set up FastAPI, include lifespan context managers for startup/shutdown, and include API routers for `auth`, `agents`, `tools`, `nl_agents`, and `run` (which will be created later). Add a simple root endpoint `/`."
+  - **Cursor AI:** Ask Cursor: "Create the directory structure: `app/api/v1/`, `app/models/`, `app/db/`, `app/core/`, `app/services/`, `tests/`."
+- [x] **Supabase Client & CRUD:**
+  - **Cursor AI:** Ask Cursor: "Create `app/db/supabase_client.py` to initialize the Supabase client using environment variables. Include an async function to get the client instance."
+  - **Cursor AI:** Ask Cursor: "Create `app/db/crud_users.py` with async CRUD operations for the `users` table, including password hashing (using `passlib[bcrypt]`) for registration and verification for login. Follow RORO pattern."
+  - **Vibe Code:** `git add app/db/supabase_client.py app/db/crud_users.py && git commit -m "Supabase client and user CRUD operations"`
+- [x] **User Models & Authentication:**
+  - **Cursor AI:** Ask Cursor: "Create `app/models/user.py` with Pydantic models for `UserCreate`, `UserLogin`, `UserResponse`, and `Token`. Use `fastapi-users` models as a reference."
+  - **Cursor AI:** Ask Cursor: "Create `app/core/security.py` for JWT token generation and verification using `fastapi-jwt-auth`. Include functions for password hashing and verification."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth/routes.py` with FastAPI routes for `/register` (POST) and `/login` (POST). Use `fastapi-users` and `fastapi-jwt-auth` for user management and authentication. Implement rate limiting using `fastapi-limiter`. Add a CAPTCHA placeholder for now."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/auth/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/models/user.py app/core/security.py app/api/v1/auth/routes.py app/api/v1/auth/__init__.py && git commit -m "Implement user models and authentication routes"`
+- [x] **Tests for User Service:**
+  - **Cursor AI:** Ask Cursor: "Write high-level integration tests for user registration and login in `tests/test_auth.py`. Simulate a user registering, then logging in with the correct credentials, and attempting to access a protected route with the token." Use `pytest` and `httpx`."
+  - **Vibe Code:** Run tests: `poetry run pytest tests/test_auth.py`. Ensure all pass. `git add tests/test_auth.py && git commit -m "Add integration tests for user authentication"`
 
-    - Inside `auth_service/`, run `poetry new src`.
-    - Configure `auth_service/pyproject.toml` with dependencies: `fastapi`, `uvicorn`, `pydantic-settings`, `sqlalchemy`, `psycopg3`, `passlib[bcrypt]`, `python-jose[cryptography]`, `supabase[async]`, `alembic`.
-    - Add dev dependencies: `pytest`, `pytest-asyncio`, `httpx`.
-    - Create a `auth_service/pytest.ini` file to configure test paths.
-    - Run `poetry install` to generate `poetry.lock`.
+### 1.3. Agent Management Microservice (Agent Management Service)
 
-3.  **Define Database Schema & Migrations:**
+- [x] **Agent Models & CRUD:**
+  - **Cursor AI:** Ask Cursor: "Create `app/models/agent.py` with Pydantic models for `AgentCreate`, `AgentUpdate`, and `AgentResponse`. Include `langflow_flow_json` as JSONB type."
+  - **Cursor AI:** Ask Cursor: "Create `app/db/crud_agents.py` with async CRUD functions for the `agents` table (create, get_by_id, get_all_by_user, update, delete). Ensure RLS is respected."
+  - **Vibe Code:** `git add app/models/agent.py app/db/crud_agents.py && git commit -m "Agent models and CRUD operations"`
+- [x] **Agent API Endpoints:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/agents/routes.py` with FastAPI routes for `/agents` (POST to create, GET to list user's agents) and `/agents/{agent_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/agents/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/agents/routes.py app/api/v1/agents/__init__.py && git commit -m "Implement agent management API endpoints"`
+- [x] **Tests for Agent Management Service:**
+  - **Cursor AI:** Ask Cursor: "Write high-level integration tests for agent creation, listing, retrieval, update, and deletion in `tests/test_agents.py`. Ensure tests cover RLS and authentication."
+  - **Vibe Code:** Run tests. `git add tests/test_agents.py && git commit -m "Add integration tests for agent management"`
 
-    - Create `auth_service/src/models.py` defining SQLAlchemy models for profiles, api_keys, app_clients, roles, permissions, all junction tables (user_roles, app_client_roles, role_permissions). `profiles` should link to `auth.users` via a foreign key.
-    - Initialize Alembic in `auth_service/`: `alembic init alembic`.
-    - Configure `auth_service/alembic.ini` and `auth_service/alembic/env.py` to connect to the Supabase database.
-    - Generate the initial migration: `alembic revision --autogenerate -m "Initial user service schema"`.
-    - Apply the migration: `alembic upgrade head`.
+### 1.4. Tool Registry Microservice (Tool Registry Service)
 
-4.  **Implement Core Service Logic:**
+- [x] **Tool Models & CRUD:**
+  - **Cursor AI:** Ask Cursor: "Create `app/models/tool.py` with Pydantic models for `ToolCreate` (`user_id`, `name`, `description`, `tool_type`, `definition`), `ToolResponse`. `definition` should be JSONB."
+  - **Cursor AI:** Ask Cursor: "Create `app/db/crud_tools.py` with async CRUD functions for the `tools` table. Ensure RLS is respected."
+  - **Vibe Code:** `git add app/models/tool.py app/db/crud_tools.py && git commit -m "Tool models and CRUD operations"`
+- [x] **Tool API Endpoints:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/tools/routes.py` with FastAPI routes for `/tools` (POST to create, GET to list user's tools) and `/tools/{tool_id}` (GET, PUT, DELETE). All routes must be protected by JWT authentication and enforce RLS."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/tools/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/tools/routes.py app/api/v1/tools/__init__.py && git commit -m "Implement tool registry API endpoints"`
+- [x] **Tests for Tool Registry Service:**
+  - **Cursor AI:** Ask Cursor: "Write high-level integration tests for tool creation, listing, retrieval, update, and deletion in `tests/test_tools.py`. Ensure tests cover RLS and authentication."
+  - **Vibe Code:** Run tests. `git add tests/test_tools.py && git commit -m "Add integration tests for tool registry"`
 
-    - Create `auth_service/src/main.py` with the FastAPI app instance, CORS, and rate limiting.
-    - Implement a health check endpoint `/health`.
-    - Implement auth_service/src/security.py with functions for:
-      - Password hashing (passlib).
-      - Human user JWT creation/validation (proxied via Supabase).
-      - M2M JWT creation/validation (python-jose) for app_clients.
-      - Client secret hashing and verification.
-    - Set up Supabase client initialization in `auth_service/src/supabase_client.py`.
+## Phase 2: Langflow Integration & Agent Deployment
 
-5.  **Build API Endpoints:**
+### 2.1. Dockerization of Microservices
 
-    - **User Auth:** Create routes for `POST /auth/register` and `POST /auth/login` that proxy requests to Supabase.
-    - **M2M Auth**: POST `/auth/token` for app_clients.
-    - **Profile Management:** Create `GET /users/me` and `PUT /users/me` endpoints for users to manage their own profiles (protected by JWT).
-    - **API Keys:** Implement endpoints for users to generate and revoke their own API keys (`POST /users/me/api-keys`, `GET /users/me/api-keys`, `DELETE /users/me/api-keys/{key_id}`).
-    - **Admin RBAC:** Create admin-only endpoints for managing clients, roles, permissions and assignments (e.g., `POST /admin/roles`).
+- [x] **Dockerfiles for Individual Services**
 
-6.  **Write Tests:**
-    - Create `auth_service/tests/` directory.
-    - Write unit tests for security functions (hashing, JWT creation).
-    - Write integration tests for all API endpoints, mocking Supabase calls where necessary.
+  - Create `app/api/v1/auth/Dockerfile` that:
+    - Uses a `python:3.12-slim` base
+    - Installs dependencies via Poetry or pip
+    - Copies project code
+    - Sets CMD to run Uvicorn on port 8000
+  - Create `app/api/v1/agents/Dockerfile` (same pattern)
+  - Create `app/api/v1/tools/Dockerfile`
+  - Create `app/api/v1/nl_agents/Dockerfile`
+  - Create `app/api/v1/run/Dockerfile`
 
----
+- [x] **Write `docker-compose.yml`**
 
-## Phase 2: Agent & Tool Management Services
+  - It should include each microservice:
+    - `auth_service` (build: `app/api/v1/auth`, ports: 8001:8000)
+    - `agents_service` (build: `app/api/v1/agents`, ports: 8002:8000)
+    - `tools_service` (build: `app/api/v1/tools`, ports: 8003:8000)
+    - `nl_agents_service` (build: `app/api/v1/nl_agents`, ports: 8004:8000)
+    - `run_service` (build: `app/api/v1/run`, ports: 8005:8000)
+    - `langflow_ide` (official image: `langflowai/langflow:latest`, ports: 7860:7860)
+  - Configure `env_file` + necessary `environment` in each
+  - (Optional) mount local code for hot-reload
 
-> **Goal:** Create the core services for managing agent definitions and custom tools. These services will be protected by the `auth_service`.
+- [x] **Install Supabase CLI for Local Development**
 
-1.  **Initialize `agent_management_service` (2.1):**
+  - Install via npm: `npm install -g supabase` or via Homebrew: `brew install supabase/tap/supabase`
+  - Run `supabase init` in the project root to scaffold Supabase services
+  - Run `supabase start` to spin up local Supabase stack (Auth, Database, Realtime, Storage, PostgREST)
+  - Ensure your `.env` has the correct credentials
 
-    - Create directory: `agent_management_service/`.
-    - Set up the project structure similarly to `auth_service` (Poetry, Dockerfile, `src`, `tests`).
-    - Define SQLAlchemy models for agents (linking to `user_id`) and set up Alembic migrations.
-    - Implement CRUD API endpoints for agents (`/agents`).
+- [ ] **Bring up & verify**
+  - Run `docker compose up --build`
+  - Hit `/docs`, `/register`, `/agents`, etc. to confirm each service
+  - Commit your compose file:
+    ```bash
+    git add docker-compose.yml
+    git commit -m "Add docker-compose for local development"
+    ```
 
-2.  **Initialize `tool_registry_service` (2.2):**
+### 2.2. Agent Deployment Service
 
-    - Create directory: `tool_registry_service/`.
-    - Set up the project structure.
-    - Define SQLAlchemy models for tools and set up Alembic migrations.
-    - Implement CRUD API endpoints for tools (`/tools`).
+- [ ] **Deployment Orchestration Logic:**
+  - **Cursor AI:** Ask Cursor: "Create `app/services/agent_deployer.py`. This module will contain functions to:
+    - Generate a Dockerfile for a specific Langflow agent flow (based on `langflow_flow_json`).
+    - Build the Docker image.
+    - Push the image to a container registry (placeholder for now).
+    - Generate Kubernetes deployment manifests (or serverless function configs) for the agent.
+    - Trigger the deployment to a Kubernetes cluster (or cloud function service).
+    - Update the agent's `deployment_status` and `deployed_endpoint` in the database."
+  - **Vibe Code:** `git add app/services/agent_deployer.py && git commit -m "Agent deployment orchestration service"`
+- [ ] **Publish Agent Endpoint:**
+  - **Cursor AI:** Ask Cursor: "Add a `POST /agents/{agent_id}/publish` route to `app/api/v1/agents.py`. This endpoint should call functions in `app/services/agent_deployer.py` to initiate deployment. Make it an async background task if deployment is long-running."
+  - **Vibe Code:** `git commit -m "Add publish agent API endpoint"`
+- [ ] **Tests for Agent Deployment:**
+  - **Cursor AI:** Ask Cursor: "Write a high-level integration test in `tests/test_agent_deployment.py` that simulates publishing an agent. Mock the actual deployment calls to cloud services."
+  - **Vibe Code:** Run tests. `git add tests/test_agent_deployment.py && git commit -m "Add tests for agent deployment"`
 
-3.  **Implement JWT Authentication Middleware (2.3):**
+### 2.3. Agent Runtime Service (User-Deployed Agents)
 
-    - Create a shared dependency or middleware that other services (`agent_management_service`, `tool_registry_service`) can use.
-    - This middleware will call the `auth_service` (or use a shared public key) to validate incoming JWTs and extract the `user_id`.
-    - Protect all `agent_management_service` and `tool_registry_service` endpoints with this authentication middleware.
+- [ ] **Generic Agent Runtime Dockerfile:**
+  - **Cursor AI:** Ask Cursor: "Create a generic Dockerfile template in `templates/agent_runtime_dockerfile.j2` that can run a Langflow-exported agent flow. It should:
+    - Use a lightweight Python base image.
+    - Install Langflow OSS and necessary dependencies (LangChain, LLM integrations, Supabase client).
+    - Copy the `langflow_flow_json` (or a reference to it) into the container.
+    - Set `LANGFLOW_BACKEND_ONLY=true` to run in headless mode.
+    - Expose a port for API calls.
+    - Define the command to run the flow as an API endpoint."
+  - **Vibe Code:** `git add templates/agent_runtime_dockerfile.j2 && git commit -m "Generic agent runtime Dockerfile template"`
+- [ ] **Agent Execution Endpoint:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/run/routes.py` with a `POST /run/{agent_id}` endpoint. This endpoint will be called by users to execute their deployed agents. It should:
+    - Load the `langflow_flow_json` for the given `agent_id`.
+    - Initialize and run the Langflow flow.
+    - Handle input/output.
+    - Integrate with LangSmith/Langfuse for tracing.
+    - Ensure agent memory (Supabase) is correctly configured for the specific agent/user."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/run/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/run/routes.py app/api/v1/run/__init__.py && git commit -m "Implement agent execution API endpoint"`
+- [ ] **Tests for Agent Execution:**
+  - **Cursor AI:** Ask Cursor: "Write high-level integration tests for agent execution in `tests/test_agent_run.py`. Mock LLM calls and Supabase interactions. Test input/output and basic flow execution."
+  - **Vibe Code:** Run tests. `git add tests/test_agent_run.py && git commit -m "Add tests for agent execution"`
 
-4.  **Write Integration Tests for Cross-Service Auth (2.4):**
-    - Write tests that simulate a user logging into `auth_service`, getting a token, and then using that token to access endpoints in the `agent_management_service`.
+## Phase 3: Advanced Features & Observability
 
----
+### 3.1. Natural Language Agent Creation
 
-## Phase 3: Deployment & Langflow Integration
+- [ ] **NL to Flow Logic:**
+  - **Cursor AI:** Ask Cursor: "Create `app/services/nl_agent_generator.py`. This module will contain a function that takes a `natural_language_description` and uses an LLM to:
+    - Parse the description into a structured representation of agent components (LLM, tools, memory, basic flow).
+    - Generate a basic Langflow flow JSON.
+    - Consider using `langchain` for parsing and structured output."
+  - **Vibe Code:** `git add app/services/nl_agent_generator.py && git commit -m "Natural language agent generator service"`
+- [ ] **NL Agent API Endpoints:**
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/nl_agents/routes.py` with `POST /nl-agents/create` and `POST /nl-agents/{agent_id}/refine` routes. These should call the `nl_agent_generator` service. Protect with authentication."
+  - **Cursor AI:** Ask Cursor: "Create `app/api/v1/nl_agents/__init__.py` to import and expose the `router` from `routes.py`."
+  - **Vibe Code:** `git add app/api/v1/nl_agents/routes.py app/api/v1/nl_agents/__init__.py && git commit -m "Implement natural language agent creation API endpoints"`
+- [ ] **Tests for NL Agent Creation:**
+  - **Cursor AI:** Ask Cursor: "Write high-level integration tests for natural language agent creation in `tests/test_nl_agents.py`. Mock LLM calls and test various descriptions."
+  - **Vibe Code:** Run tests. `git add tests/test_nl_agents.py && git commit -m "Add tests for natural language agent creation"`
 
-> **Goal:** Get the core services and the Langflow IDE running in a containerized environment and establish the workflow for agent creation.
+### 3.2. Monitoring & Observability
 
-1.  **Finalize Dockerization (3.1):**
+- [ ] **LangSmith/Langfuse Integration:**
+  - **Action:** Ensure `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` are correctly set in your FastAPI and Langflow Docker environments.
+  - **Cursor AI:** Ask Cursor: "Add `langsmith` and `langfuse` initialization to `main.py` and `app/api/v1/run.py` to trace LLM calls and agent executions."
+  - **Vibe Code:** `git commit -m "Integrate LangSmith/Langfuse for tracing"`
+- [ ] **Centralized Logging:**
+  - **Cursor AI:** Ask Cursor: "Configure Python's `logging` module in `main.py` and other services to output structured logs (e.g., JSON format). Suggest a basic setup for local file logging and a placeholder for cloud-native logging."
+  - **Vibe Code:** `git commit -m "Implement centralized logging"`
 
-    - Create production-ready, multi-stage Dockerfiles for each service.
-    - Update `docker-compose.yml` to use the production Dockerfiles and handle environment variables securely.
+### 3.3. Multi-Agent Orchestration
 
-2.  **Set Up Kubernetes Manifests (3.2):**
+- [ ] **CrewAI Integration (via Langflow):**
+  - **Action:** Guide users on how to use Langflow's native CrewAI components. This is primarily a documentation task for your users.
+  - **Cursor AI:** Ask Cursor: "Generate a sample Langflow flow JSON for a simple CrewAI setup (e.g., a 'Researcher' and 'Writer' agent collaborating on a topic). Save this to `sample_flows/crewai_example.json`."
+  - **Vibe Code:** `git add sample_flows/crewai_example.json && git commit -m "Add sample CrewAI flow"`
+- [ ] **AutoGen Integration (via Custom Component/Tool):**
+  - **Cursor AI:** Ask Cursor: "Create a custom Langflow component in `langflow_custom_components/autogen_wrapper.py` that wraps an AutoGen multi-agent conversation. This component should take inputs, initiate an AutoGen chat, and return the result. It should use `langgraph` for integration as shown in research."
+  - **Vibe Code:** `git add langflow_custom_components/autogen_wrapper.py && git commit -m "Custom Langflow component for AutoGen integration"`
 
-    - Create a `k8s/` directory at the project root.
-    - For each service, create `deployment.yaml`, `service.yaml`, and `ingress.yaml` files.
-    - Create a `k8s/shared/` directory for shared resources like `ClusterIssuer` for TLS certificates.
-    - Parameterize image tags and domains for easy configuration in a CI/CD pipeline.
+### 3.4. Interoperability Protocols (MCP & A2A)
 
-3.  **Build CI/CD Pipeline (3.3):**
+- [ ] **MCP Integration:**
+  - **Action:** Langflow natively supports MCP as client/server.
+  - **Cursor AI:** Ask Cursor: "Provide instructions for users on how to expose their Langflow-built agents as MCP servers. Include steps for configuring Langflow's MCP server tab and connecting Cursor AI as an MCP client."
+  - **Cursor AI:** Ask Cursor: "Generate a custom Langflow component in `langflow_custom_components/mcp_client_tool.py` that acts as an MCP client, allowing agents to discover and use external MCP tools."
+  - **Vibe Code:** `git add langflow_custom_components/mcp_client_tool.py && git commit -m "MCP client custom component"`
+- [ ] **A2A Protocol (Future-Proofing):**
+  - **Action:** Monitor A2A protocol development.
+  - **Cursor AI:** Ask Cursor: "Outline a high-level plan for how my FastAPI backend could act as an A2A client/server, allowing agents on my platform to communicate with other A2A-compatible agents. Focus on the API endpoints and data structures needed." (This is a research/planning task for now).
+  - **Vibe Code:** `git commit -m "A2A protocol integration plan (placeholder)"`
 
-    - Create a GitHub Actions workflow (`.github/workflows/deploy.yml`).
-    - The workflow should have separate jobs to build and push Docker images for each service that has changed.
-    - A final job should apply the Kubernetes manifests to deploy the updated services.
+## Phase 4: Production Deployment & Refinement
 
-4.  **Integrate Langflow with Backend (3.4):**
-    - The `agent_management_service` will be responsible for storing the JSON representation of flows created in the Langflow IDE.
-    - The `tool_registry_service` will provide custom tools that can be surfaced within Langflow.
-    - This step involves connecting the Langflow frontend's "Export" functionality to the `POST /agents` endpoint.
+### 4.1. Cloud Deployment
 
----
+- [ ] **Container Registry Setup:**
+  - **External:** Choose a container registry (e.g., Docker Hub, AWS ECR, Google Container Registry, Azure Container Registry).
+  - **Cursor AI:** Ask Cursor: "Generate a `Dockerfile` for my `fastapi_backend` service, optimized for production. Include multi-stage build if appropriate."
+  - **Vibe Code:** `git add Dockerfile.backend && git commit -m "Production Dockerfile for FastAPI backend"`
+- [ ] **Kubernetes Deployment (for Platform Services):**
+  - **Cursor AI:** Ask Cursor: "Generate Kubernetes deployment, service, and ingress manifests (`.yaml` files) for my `fastapi_backend` and `langflow_ide` services. Include considerations for horizontal scaling, load balancing, and persistent storage for Langflow data. Use `kustomize` or `helm` for templating."
+  - **Vibe Code:** `git add kubernetes/ && git commit -m "Kubernetes manifests for platform services"`
+- [ ] **CI/CD Pipeline:**
+  - **Cursor AI:** Ask Cursor: "Generate a GitHub Actions workflow to automatically build Docker images for `fastapi_backend` and `langflow_ide`, push them to a container registry, and deploy them to my Kubernetes cluster on push to `main` branch."
+  - **Vibe Code:** `git add .github/workflows/ci-cd.yml && git commit -m "CI/CD pipeline for platform deployment"`
+- [ ] **User Agent Deployment (Kubernetes/Serverless):**
+  - **Action:** Implement the logic in `app/services/agent_deployer.py` to dynamically generate and apply Kubernetes manifests (or deploy serverless functions) for each user's agent.
+  - **Vibe Code:** `git commit -m "Implement dynamic user agent deployment"`
 
-## Phase 4: Advanced Features & Production Readiness
+### 4.2. Security Hardening & Compliance
 
-> **Goal:** Implement the remaining features from the PRD and harden the platform for production use.
+- [ ] **WAF Configuration:**
+  - **External:** Configure WAF rules on your cloud provider's API Gateway/Load Balancer.
+- [ ] **Secret Management:**
+  - **External:** Migrate sensitive environment variables to a cloud-native secret management service.
+  - **Cursor AI:** Ask Cursor: "Modify my FastAPI application to retrieve secrets from a cloud-native secret management service (e.g., AWS Secrets Manager) instead of `.env` in production."
+- [ ] **Regular Security Audits:**
+  - **Action:** Schedule periodic penetration tests and vulnerability scans.
 
-1.  **Build `agent_deployment_service` (4.1):**
+### 4.3. Documentation & User Guides
 
-    - This service will listen for "agent published" events (e.g., via a message queue or a direct API call from the `agent_management_service`).
-    - It will be responsible for taking an agent's Langflow JSON, packaging it into a runtime container, and deploying it to Kubernetes.
+- [ ] **User Documentation:**
+  - **Cursor AI:** Ask Cursor: "Generate a draft for a 'Getting Started' guide for users, explaining how to register, create their first agent using Langflow, and publish it. Include screenshots/placeholders."
+  - **Cursor AI:** Ask Cursor: "Generate a guide on 'How to Create Custom Tools' for users, including Python code examples and OpenAPI spec examples."
+  - **Cursor AI:** Ask Cursor: "Generate a guide on 'Building Multi-Agent Systems' using Langflow's CrewAI components."
+  - **Vibe Code:** `git add docs/user_guides/ && git commit -m "Draft user documentation"`
+- [ ] **API Documentation:**
+  - **Action:** FastAPI automatically generates OpenAPI (Swagger UI) documentation. Ensure it's accessible and well-described.
+  - **Cursor AI:** Ask Cursor: "Review my FastAPI Pydantic models and route docstrings to ensure they are clear and comprehensive for auto-generated API documentation."
 
-2.  **Build `agent_runtime_service` (4.2):**
+### 4.4. Billing & Usage Tracking (If applicable for MVP)
 
-    - Develop the generic runtime environment that will execute the deployed agents.
-    - This service will handle incoming requests to an agent's endpoint, manage its memory (connecting to Supabase `pgvector`), and execute its logic.
-
-3.  **Implement Natural Language Agent Creation (4.3):**
-
-    - Create a new `nl_agent_service`.
-    - This service will have an endpoint that accepts a natural language description, uses an LLM (like GPT-4o) to generate a Langflow JSON structure, and saves it via the `agent_management_service`.
-
-4.  **Harden Security (4.4):**
-
-    - Implement WAF (Web Application Firewall) at the ingress level.
-    - Integrate a secure secret management solution (e.g., AWS Secrets Manager, HashiCorp Vault).
-    - Conduct a full security review of all services and their dependencies.
-
-5.  **Set Up Observability (4.5):**
-    - Integrate LangSmith and/or Langfuse into the `agent_runtime_service` for detailed tracing of agent behavior.
-    - Configure Prometheus and Grafana for collecting and visualizing metrics from all services.
-    - Ensure all services output structured (JSON) logs for effective aggregation and analysis.
+- [ ] **Token Usage Tracking:**
+  - **Cursor AI:** Ask Cursor: "Design a database schema for `token_usage` (`user_id`, `agent_id`, `llm_model`, `tokens_input`, `tokens_output`, `cost`, `timestamp`). Create `app/db/crud_usage.py`."
+  - **Cursor AI:** Ask Cursor: "Implement a FastAPI middleware or a custom Langflow component to intercept LLM calls and log token usage to the `token_usage` table."
+  - **Vibe Code:** `git commit -m "Implement token usage tracking"`
