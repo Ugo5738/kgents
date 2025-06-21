@@ -5,7 +5,7 @@ from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from agent_management_service.db import Base
+from ..db import Base
 
 
 class TimestampMixin:

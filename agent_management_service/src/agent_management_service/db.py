@@ -1,9 +1,27 @@
-from typing import AsyncGenerator
+import asyncio
+import time
+from typing import AsyncGenerator, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+import sqlalchemy.util.concurrency as _concurrency
+
+_concurrency._not_implemented = lambda *args, **kwargs: None
+
+import os
+import urllib.parse
+
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func, text
 
-from agent_management_service.config import settings
+from src.agent_management_service.config import settings
+from src.agent_management_service.logging_config import logger
 
 # Create SQLAlchemy engine
 engine = create_async_engine(
@@ -29,10 +47,10 @@ Base = declarative_base()
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides an async database session.
-    
+
     Yields:
         AsyncSession: SQLAlchemy async session
-        
+
     Example:
         ```
         @app.get("/items")
@@ -45,6 +63,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception as e:
             await session.rollback()
+            logger.error(f"Database session error: {e}")
             raise

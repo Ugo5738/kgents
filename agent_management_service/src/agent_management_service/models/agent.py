@@ -1,11 +1,11 @@
+import uuid
 from enum import Enum
-from uuid import UUID
 
-from sqlalchemy import JSON, Enum as SQLAEnum, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, Column, DateTime, Enum as SQLAEnum, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
-from agent_management_service.models.base import BaseModel
+from src.agent_management_service.db import Base
 
 
 class AgentStatus(str, Enum):
@@ -17,7 +17,7 @@ class AgentStatus(str, Enum):
     ARCHIVED = "archived"
 
 
-class Agent(BaseModel):
+class Agent(Base):
     """
     Model representing an agent in the system.
     
@@ -27,29 +27,41 @@ class Agent(BaseModel):
     """
     __tablename__ = "agents"
 
+    # Primary key with UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
     # Basic agent information
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
     
     # Agent configuration - stored as JSON for flexibility
     # This contains the Langflow configuration
-    config: Mapped[dict] = mapped_column(JSON, nullable=False)
+    config = Column(JSON, nullable=False)
     
     # Status tracking
-    status: Mapped[AgentStatus] = mapped_column(
+    status = Column(
         SQLAEnum(AgentStatus),
         nullable=False,
         default=AgentStatus.DRAFT,
     )
     
     # Tags for agent categorization 
-    tags: Mapped[list] = mapped_column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
     
     # Ownership - link to auth.users
-    user_id: Mapped[UUID] = mapped_column(
-        PostgresUUID(as_uuid=True), 
+    user_id = Column(
+        UUID(as_uuid=True), 
         nullable=False,
         index=True,
+    )
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
     
     # Relationships
@@ -59,20 +71,32 @@ class Agent(BaseModel):
         back_populates="agent",
         cascade="all, delete-orphan",
         order_by="desc(AgentVersion.version_number)",
+        # Add primaryjoin to explicitly define this relationship
+        primaryjoin="Agent.id == AgentVersion.agent_id",
     )
     
     # Current active version for this agent (if published)
-    active_version_id = mapped_column(
-        PostgresUUID(as_uuid=True),
-        ForeignKey("agent_versions.id", ondelete="SET NULL"),
+    # Using use_alter and name for the foreign key to defer its creation
+    active_version_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "agent_versions.id", 
+            ondelete="SET NULL",
+            # These settings tell SQLAlchemy to create this FK constraint after both tables are created
+            use_alter=True,
+            name="fk_agent_active_version_id"
+        ),
         nullable=True,
     )
     active_version = relationship(
         "AgentVersion",
         foreign_keys=[active_version_id],
+        # Use post_update to handle circular dependency
         post_update=True,
+        # Add primaryjoin to explicitly define this relationship
+        primaryjoin="Agent.active_version_id == AgentVersion.id",
     )
     
-    def __repr__(self) -> str:
+    def __repr__(self):
         """String representation of the agent."""
-        return f"<Agent {self.name} ({self.status.value})>"
+        return f"<Agent(id='{self.id}', name='{self.name}', status='{self.status}')>"

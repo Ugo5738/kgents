@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from agent_management_service.config import Environment, settings
+from src.agent_management_service.config import Environment, settings
 
 # Configure logger
 logger = logging.getLogger("agent_management_service")

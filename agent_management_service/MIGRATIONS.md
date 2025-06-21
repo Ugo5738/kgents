@@ -17,7 +17,7 @@ The agent_management_service database schema consists of tables that manage:
 Ensure your `.env` or `.env.dev` file contains the correct database URL:
 
 ```bash
-DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:5432/agent_management_dev_db
+DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/agent_management_dev_db
 ```
 
 ### Step 2: Configure Alembic
@@ -73,8 +73,8 @@ When changing models:
 
 ### Circular Import Issues
 
-- Use string-based relationship references (`"src.auth_service.models.SomeModel"`)
-- Import models through `src.auth_service.models` module (preferred), not directly
+- Use string-based relationship references (`"src.agent_management_service.models.SomeModel"`)
+- Import models through `src.agent_management_service.models` module (preferred), not directly
 - Ensure models are correctly registered with `Base.metadata`
 
 ### Database URL Configuration

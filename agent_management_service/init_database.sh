@@ -4,8 +4,8 @@
 set -e
 
 # Set database connection parameters from environment variables
-DB_HOST=${POSTGRES_HOST:-supabase_db_kgents}
-DB_PORT=${POSTGRES_PORT:-5432}
+DB_HOST=${POSTGRES_HOST:-127.0.0.1}
+DB_PORT=${POSTGRES_PORT:-54322}
 DB_USER=${POSTGRES_USER:-postgres}
 DB_PASSWORD=${POSTGRES_PASSWORD:-postgres}
 DB_NAME=${POSTGRES_DB:-postgres}

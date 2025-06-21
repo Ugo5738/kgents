@@ -48,9 +48,8 @@ engine: AsyncEngine = create_async_engine(
     connect_args={
         "application_name": "auth_service",
         # For psycopg v3, we use options parameter instead of server_settings
-        "options": "-c timezone=UTC" + (
-            "" if settings.ENVIRONMENT == "testing" else " -c statement_timeout=5000"
-        ),
+        "options": "-c timezone=UTC"
+        + ("" if settings.ENVIRONMENT == "testing" else " -c statement_timeout=5000"),
     },
 )
 
