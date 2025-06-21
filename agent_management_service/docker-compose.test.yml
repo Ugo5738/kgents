@@ -1,13 +1,13 @@
-# auth_service/docker-compose.test.yml
+# agent_management_service/docker-compose.test.yml
 services:
-  auth_service_test:
+  agent_management_service_test:
     build:
       context: .
       dockerfile: Dockerfile # Can reuse dev Dockerfile for testing
     environment:
-      - ENVIRONMENT=testing
+      - AGENT_MANAGEMENT_SERVICE_ENVIRONMENT=testing
       # Override database URL for an isolated test database
-      - AUTH_SERVICE_DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:54322/auth_test_db
+      - AGENT_MANAGEMENT_SERVICE_DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:54322/agent_management_test_db
     env_file:
       - ./.env.test
     networks:

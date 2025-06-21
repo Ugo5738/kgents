@@ -5,6 +5,7 @@ This document outlines the database migration workflow for the `auth_service` co
 ## Architecture Overview
 
 The auth_service database schema consists of two parts:
+
 1. **External Auth Schema**: Managed by Supabase, containing tables like `auth.users`
 2. **Auth Service Tables**: Managed by our application through Alembic, containing our custom tables
 
@@ -20,6 +21,7 @@ python scripts/copy_auth_schema.py --source-db postgres --target-db auth_dev_db 
 ```
 
 This script:
+
 - Creates the `auth` schema in the target database
 - Copies table definitions from a source database with Supabase auth
 - Creates a test user if needed
@@ -35,6 +37,7 @@ sqlalchemy.url = postgresql+psycopg://postgres:postgres@127.0.0.1:54322/auth_dev
 ```
 
 Ensure `env.py` is configured to:
+
 1. Import all models
 2. Set `target_metadata = Base.metadata`
 3. Handle async database connections correctly
@@ -60,6 +63,7 @@ python scripts/verify_migrations.py
 ```
 
 This script:
+
 - Extracts expected schema from SQLAlchemy models
 - Compares with the actual database schema
 - Reports any discrepancies (missing tables or columns)
@@ -140,3 +144,20 @@ python scripts/verify_migrations.py
 - **verify_migrations.py**: Verifies that the database schema matches SQLAlchemy models
 - **create_migration.sh**: Helper script to create initial migrations
 - **auth_test_migrations.py**: Script for setting up test database migrations
+
+## Migration Best Practices
+
+1. **Breaking Changes**: Avoid breaking changes to existing tables when possible
+2. **Data Migration**: For complex data migrations, write separate scripts
+3. **Testing**: Always test migrations in a development environment before production
+4. **Rollbacks**: Include downgrade paths in migrations for rollback support
+5. **Idempotency**: Ensure migrations are idempotent when possible
+
+## Production Deployment
+
+For production deployments:
+
+1. Back up the database before migration
+2. Run migrations during scheduled maintenance if they might cause downtime
+3. Consider running migrations in a transaction when possible
+4. Monitor the migration process for any issues
