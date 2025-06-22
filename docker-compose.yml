@@ -3,6 +3,8 @@ services:
     extends:
       file: auth_service/docker-compose.dev.yml
       service: auth_service_dev
+    ports:
+      - "8001:8000"
 
   agent_management_service:
     extends:
@@ -43,4 +45,4 @@ networks:
     driver: bridge
   supabase_network_kgents:
     external: true
-    name: kgents_default # Default network name created by `supabase start`
+    # The actual network name as created by Supabase CLI

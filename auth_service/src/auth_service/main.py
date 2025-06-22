@@ -227,9 +227,10 @@ app.add_middleware(
 )
 
 # Include Routers
-app.include_router(user_auth_router, prefix="/api/v1", tags=["User Authentication"])
-app.include_router(token_router, prefix="/api/v1", tags=["M2M - Token Acquisition"])
-app.include_router(admin_router, prefix="/api/v1/admin", tags=["Administration"])
+# Removed duplicate /api/v1 prefix since it's already set as root_path in FastAPI app initialization
+app.include_router(user_auth_router, tags=["User Authentication"])
+app.include_router(token_router, tags=["M2M - Token Acquisition"])
+app.include_router(admin_router, prefix="/admin", tags=["Administration"])
 
 
 # Exception handlers

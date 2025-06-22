@@ -60,6 +60,10 @@ app = FastAPI(
             "description": "Operations for integrating with Langflow IDE",
         },
     ],
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    swagger_ui_parameters={"persistAuthorization": True},
 )
 
 # Track app startup time for uptime monitoring in health checks

@@ -89,11 +89,18 @@ class SupabaseUser(BaseModel):
     last_sign_in_at: Optional[datetime] = None
     app_metadata: Dict[str, Any] = Field(default_factory=dict)
     user_metadata: Dict[str, Any] = Field(default_factory=dict)
-    identities: Optional[List[Dict[str, Any]]] = None
+    # Fixed to handle both Dict and UserIdentity objects returned from Supabase
+    identities: Optional[List[Any]] = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    # Updated model config to better handle arbitrary types and conversion
+    model_config = ConfigDict(
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        validate_assignment=True
+    )
 
 
 class SupabaseSession(

@@ -15,11 +15,11 @@ WORKDIR /app
 # Install Poetry
 RUN pip install poetry
 
-# Copy only the dependency files to leverage Docker cache
-COPY pyproject.toml poetry.lock ./
+# Copy only pyproject.toml first to leverage Docker cache
+COPY pyproject.toml ./
 
-# Install all dependencies, including dev dependencies
-RUN poetry install --no-root
+# Generate the lock file if it doesn't exist and install all dependencies
+RUN poetry lock && poetry install --no-root
 
 # Copy the entire service source code
 COPY . .
