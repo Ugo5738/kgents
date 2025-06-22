@@ -63,7 +63,7 @@ class Settings(BaseSettings):
             password=info.data.get("POSTGRES_PASSWORD"),
             host=info.data.get("POSTGRES_HOST"),
             port=int(info.data.get("POSTGRES_PORT", 5432)),
-            path=f"/{info.data.get('POSTGRES_DB') or ''}",
+            path=f"{info.data.get('POSTGRES_DB') or ''}",
         )
 
     # Langflow Integration

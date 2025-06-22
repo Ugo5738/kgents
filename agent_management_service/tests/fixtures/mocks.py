@@ -16,6 +16,12 @@ class MockAuthResponse:
         self.is_valid = True
         self.roles = ["user"]
         self.error = None
+        
+    def get(self, key: str, default: Any = None) -> Any:
+        """Provide dictionary-like get method for compatibility with auth dependencies."""
+        if key == "sub" or key == "user_id":
+            return self.user_id
+        return default
 
 
 @pytest_asyncio.fixture

@@ -13,7 +13,7 @@ class TestAgentModel:
     """Test suite for the Agent model."""
     
     @pytest.mark.asyncio
-    async def test_create_agent(self, test_db_session):
+    async def test_create_agent(self, db_session):
         """Test creating an agent."""
         user_id = uuid4()
         agent = Agent(
@@ -25,8 +25,8 @@ class TestAgentModel:
             user_id=user_id
         )
         
-        test_db_session.add(agent)
-        await test_db_session.flush()
+        db_session.add(agent)
+        await db_session.flush()
         
         # Verify the agent was created with a UUID
         assert isinstance(agent.id, UUID)
@@ -35,7 +35,7 @@ class TestAgentModel:
         assert agent.user_id == user_id
         
     @pytest.mark.asyncio
-    async def test_agent_with_versions(self, test_db_session):
+    async def test_agent_with_versions(self, db_session):
         """Test creating an agent with versions."""
         user_id = uuid4()
         
@@ -48,8 +48,8 @@ class TestAgentModel:
             user_id=user_id
         )
         
-        test_db_session.add(agent)
-        await test_db_session.flush()
+        db_session.add(agent)
+        await db_session.flush()
         
         # Create versions
         version1 = AgentVersion(
@@ -68,18 +68,18 @@ class TestAgentModel:
             change_summary="Updated version"
         )
         
-        test_db_session.add_all([version1, version2])
-        await test_db_session.flush()
+        db_session.add_all([version1, version2])
+        await db_session.flush()
         
         # Query the agent with versions
-        result = await test_db_session.execute(
+        result = await db_session.execute(
             select(Agent)
             .where(Agent.id == agent.id)
         )
         agent_with_versions = result.scalar_one()
         
         # Verify versions are available through relationship
-        await test_db_session.refresh(agent_with_versions, ["versions"])
+        await db_session.refresh(agent_with_versions, ["versions"])
         assert len(agent_with_versions.versions) == 2
         
         # Verify they're ordered by version_number descending
@@ -91,7 +91,7 @@ class TestAgentVersionModel:
     """Test suite for the AgentVersion model."""
     
     @pytest.mark.asyncio
-    async def test_create_agent_version(self, test_db_session):
+    async def test_create_agent_version(self, db_session):
         """Test creating an agent version."""
         user_id = uuid4()
         
@@ -104,8 +104,8 @@ class TestAgentVersionModel:
             user_id=user_id
         )
         
-        test_db_session.add(agent)
-        await test_db_session.flush()
+        db_session.add(agent)
+        await db_session.flush()
         
         # Create version
         version = AgentVersion(
@@ -116,8 +116,8 @@ class TestAgentVersionModel:
             change_summary="Test version"
         )
         
-        test_db_session.add(version)
-        await test_db_session.flush()
+        db_session.add(version)
+        await db_session.flush()
         
         # Verify the version was created with a UUID
         assert isinstance(version.id, UUID)

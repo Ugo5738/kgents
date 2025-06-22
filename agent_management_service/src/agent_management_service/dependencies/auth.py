@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import Depends, Request
 
+from agent_management_service.clients.auth_service_client import get_auth_service_client
 from agent_management_service.security import validate_token
 
 

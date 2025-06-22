@@ -16,7 +16,7 @@ class TestAgentCRUD:
     """Test suite for agent CRUD operations."""
 
     @pytest.mark.asyncio
-    async def test_create_agent(self, test_db_session):
+    async def test_create_agent(self, db_session):
         """Test creating an agent."""
         user_id = uuid4()
         agent_data = AgentCreate(
@@ -27,7 +27,7 @@ class TestAgentCRUD:
             status=AgentStatus.DRAFT
         )
 
-        agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        agent = await agent_crud.create_agent(db_session, agent_data, user_id)
 
         # Verify the agent was created
         assert agent.name == "Test Agent"
@@ -37,12 +37,15 @@ class TestAgentCRUD:
         assert agent.status == AgentStatus.DRAFT
         assert agent.user_id == user_id
 
+        # Explicitly load versions relationship to avoid async lazy loading issues
+        await db_session.refresh(agent, ["versions"])
+        
         # Verify a version was created
         assert len(agent.versions) == 1
         assert agent.versions[0].version_number == 1
 
     @pytest.mark.asyncio
-    async def test_get_agent(self, test_db_session):
+    async def test_get_agent(self, db_session):
         """Test getting an agent."""
         # Create an agent first
         user_id = uuid4()
@@ -52,10 +55,10 @@ class TestAgentCRUD:
             config={"test": "config"},
             status=AgentStatus.DRAFT
         )
-        created_agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        created_agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Get the agent
-        agent = await agent_crud.get_agent(test_db_session, created_agent.id, user_id)
+        agent = await agent_crud.get_agent(db_session, created_agent.id, user_id)
         
         # Verify the agent was retrieved
         assert agent.id == created_agent.id
@@ -64,11 +67,11 @@ class TestAgentCRUD:
         # Test getting with wrong user ID
         wrong_user_id = uuid4()
         with pytest.raises(HTTPException) as excinfo:
-            await agent_crud.get_agent(test_db_session, created_agent.id, wrong_user_id)
+            await agent_crud.get_agent(db_session, created_agent.id, wrong_user_id)
         assert excinfo.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_agents(self, test_db_session):
+    async def test_get_agents(self, db_session):
         """Test listing agents."""
         user_id = uuid4()
         
@@ -80,17 +83,17 @@ class TestAgentCRUD:
                 config={"test": f"config {i}"},
                 status=AgentStatus.DRAFT
             )
-            await agent_crud.create_agent(test_db_session, agent_data, user_id)
+            await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Get all agents
-        agents, total = await agent_crud.get_agents(test_db_session, user_id)
+        agents, total = await agent_crud.get_agents(db_session, user_id)
         
         # Verify agents were retrieved
         assert total == 5
         assert len(agents) == 5
         
         # Test pagination
-        agents, total = await agent_crud.get_agents(test_db_session, user_id, skip=2, limit=2)
+        agents, total = await agent_crud.get_agents(db_session, user_id, skip=2, limit=2)
         assert total == 5
         assert len(agents) == 2
         
@@ -101,18 +104,14 @@ class TestAgentCRUD:
             config={"test": "published"},
             status=AgentStatus.PUBLISHED
         )
-        await agent_crud.create_agent(test_db_session, published_agent, user_id)
+        await agent_crud.create_agent(db_session, published_agent, user_id)
         
-        agents, total = await agent_crud.get_agents(
-            test_db_session, 
-            user_id, 
-            status=AgentStatus.PUBLISHED
-        )
+        agents, total = await agent_crud.get_agents(db_session, user_id, status=AgentStatus.PUBLISHED)
         assert total == 1
         assert agents[0].name == "Published Agent"
 
     @pytest.mark.asyncio
-    async def test_update_agent(self, test_db_session):
+    async def test_update_agent(self, db_session):
         """Test updating an agent."""
         user_id = uuid4()
         
@@ -123,7 +122,7 @@ class TestAgentCRUD:
             config={"original": "config"},
             status=AgentStatus.DRAFT
         )
-        created_agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        created_agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Update the agent
         update_data = AgentUpdate(
@@ -131,12 +130,7 @@ class TestAgentCRUD:
             description="Updated description",
             config={"updated": "config"}
         )
-        updated_agent = await agent_crud.update_agent(
-            test_db_session, 
-            created_agent.id, 
-            update_data, 
-            user_id
-        )
+        updated_agent = await agent_crud.update_agent(db_session, created_agent.id, update_data, user_id)
         
         # Verify the agent was updated
         assert updated_agent.name == "Updated Agent"
@@ -144,26 +138,20 @@ class TestAgentCRUD:
         assert updated_agent.config == {"updated": "config"}
         
         # Verify a new version was created
-        await test_db_session.refresh(updated_agent, ["versions"])
+        await db_session.refresh(updated_agent, ["versions"])
         assert len(updated_agent.versions) == 2
         assert updated_agent.versions[0].version_number == 2
         
         # Test updating without creating a version
         update_data = AgentUpdate(name="No Version Update")
-        updated_agent = await agent_crud.update_agent(
-            test_db_session, 
-            updated_agent.id, 
-            update_data, 
-            user_id,
-            create_version=False
-        )
+        updated_agent = await agent_crud.update_agent(db_session, updated_agent.id, update_data, user_id, create_version=False)
         
         # Verify no new version was created
-        await test_db_session.refresh(updated_agent, ["versions"])
+        await db_session.refresh(updated_agent, ["versions"])
         assert len(updated_agent.versions) == 2
 
     @pytest.mark.asyncio
-    async def test_delete_agent(self, test_db_session):
+    async def test_delete_agent(self, db_session):
         """Test deleting an agent."""
         user_id = uuid4()
         
@@ -174,22 +162,22 @@ class TestAgentCRUD:
             config={"test": "config"},
             status=AgentStatus.DRAFT
         )
-        created_agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        created_agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Delete the agent
-        result = await agent_crud.delete_agent(test_db_session, created_agent.id, user_id)
+        result = await agent_crud.delete_agent(db_session, created_agent.id, user_id)
         assert result is True
         
         # Verify the agent was deleted
         with pytest.raises(HTTPException):
-            await agent_crud.get_agent(test_db_session, created_agent.id, user_id)
+            await agent_crud.get_agent(db_session, created_agent.id, user_id)
 
 
 class TestVersionCRUD:
     """Test suite for agent version CRUD operations."""
 
     @pytest.mark.asyncio
-    async def test_create_agent_version(self, test_db_session):
+    async def test_create_agent_version(self, db_session):
         """Test creating an agent version."""
         user_id = uuid4()
         
@@ -200,7 +188,7 @@ class TestVersionCRUD:
             config={"test": "config"},
             status=AgentStatus.DRAFT
         )
-        agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Create a new version
         version_data = AgentVersionCreate(
@@ -209,7 +197,7 @@ class TestVersionCRUD:
             change_summary="Manual version creation"
         )
         
-        version = await version_crud.create_agent_version(test_db_session, version_data, user_id)
+        version = await version_crud.create_agent_version(db_session, version_data, user_id)
         
         # Verify the version was created
         assert version.agent_id == agent.id
@@ -218,7 +206,7 @@ class TestVersionCRUD:
         assert version.change_summary == "Manual version creation"
 
     @pytest.mark.asyncio
-    async def test_get_agent_versions(self, test_db_session):
+    async def test_get_agent_versions(self, db_session):
         """Test getting agent versions."""
         user_id = uuid4()
         
@@ -229,7 +217,7 @@ class TestVersionCRUD:
             config={"test": "config"},
             status=AgentStatus.DRAFT
         )
-        agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Create additional versions
         for i in range(2, 5):
@@ -238,10 +226,10 @@ class TestVersionCRUD:
                 config_snapshot={"version": i},
                 change_summary=f"Version {i}"
             )
-            await version_crud.create_agent_version(test_db_session, version_data, user_id)
+            await version_crud.create_agent_version(db_session, version_data, user_id)
         
         # Get all versions
-        versions, total = await version_crud.get_agent_versions(test_db_session, agent.id, user_id)
+        versions, total = await version_crud.get_agent_versions(db_session, agent.id, user_id)
         
         # Verify versions were retrieved
         assert total == 4  # 1 initial + 3 additional
@@ -254,7 +242,7 @@ class TestVersionCRUD:
         assert versions[3].version_number == 1
 
     @pytest.mark.asyncio
-    async def test_get_latest_agent_version(self, test_db_session):
+    async def test_get_latest_agent_version(self, db_session):
         """Test getting the latest agent version."""
         user_id = uuid4()
         
@@ -265,7 +253,7 @@ class TestVersionCRUD:
             config={"test": "config"},
             status=AgentStatus.DRAFT
         )
-        agent = await agent_crud.create_agent(test_db_session, agent_data, user_id)
+        agent = await agent_crud.create_agent(db_session, agent_data, user_id)
         
         # Create additional versions
         for i in range(2, 4):
@@ -274,10 +262,10 @@ class TestVersionCRUD:
                 config_snapshot={"version": i},
                 change_summary=f"Version {i}"
             )
-            await version_crud.create_agent_version(test_db_session, version_data, user_id)
+            await version_crud.create_agent_version(db_session, version_data, user_id)
         
         # Get latest version
-        latest = await version_crud.get_latest_agent_version(test_db_session, agent.id, user_id)
+        latest = await version_crud.get_latest_agent_version(db_session, agent.id, user_id)
         
         # Verify latest version
         assert latest.version_number == 3

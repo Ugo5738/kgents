@@ -1,8 +1,8 @@
 services:
-  auth_service:
-    extends:
-      file: auth_service/docker-compose.dev.yml
-      service: auth_service_dev
+  # auth_service:
+  #   extends:
+  #     file: auth_service/docker-compose.dev.yml
+  #     service: auth_service_dev
 
   agent_management_service:
     extends:
@@ -11,31 +11,31 @@ services:
     ports:
       - "8002:8000"
 
-  tool_registry_service:
-    extends:
-      file: tool_registry_service/docker-compose.dev.yml
-      service: tool_registry_service_dev
-    ports:
-      - "8003:8000"
+  # tool_registry_service:
+  #   extends:
+  #     file: tool_registry_service/docker-compose.dev.yml
+  #     service: tool_registry_service_dev
+  #   ports:
+  #     - "8003:8000"
 
-  nl_agents_service:
-    extends:
-      file: nl_agents_service/docker-compose.dev.yml
-      service: nl_agents_service_dev
-    ports:
-      - "8004:8000"
+  # nl_agents_service:
+  #   extends:
+  #     file: nl_agents_service/docker-compose.dev.yml
+  #     service: nl_agents_service_dev
+  #   ports:
+  #     - "8004:8000"
 
-  langflow_ide:
-    image: langflowai/langflow:latest
-    ports:
-      - "7860:7860"
-    env_file: .env
-    environment:
-      # This connects Langflow to the local Supabase Postgres instance
-      LANGFLOW_DATABASE_URL: "postgresql://postgres:postgres@supabase_db_kgents:5432/postgres"
-    networks:
-      - kgents_network
-      - supabase_network_kgents
+  # langflow_ide:
+  #   image: langflowai/langflow:latest
+  #   ports:
+  #     - "7860:7860"
+  #   env_file: .env
+  #   environment:
+  #     # This connects Langflow to the local Supabase Postgres instance
+  #     LANGFLOW_DATABASE_URL: "postgresql://postgres:postgres@supabase_db_kgents:5432/postgres"
+  #   networks:
+  #     - kgents_network
+  #     - supabase_network_kgents
 
 networks:
   kgents_network:

@@ -25,7 +25,7 @@ from sqlalchemy.sql import sqltypes
 
 # Import settings and Base
 sys.path.append("/app")
-from auth_service.config.settings import settings
+from auth_service.config import settings
 from auth_service.db import Base
 
 # Import all models to ensure they're registered with Base.metadata

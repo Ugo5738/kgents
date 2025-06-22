@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from auth_service.config import settings  # Import settings
+from auth_service.config import settings
 
 # It's recommended to create a CryptContext instance once and reuse it.
 # Configure it for bcrypt.

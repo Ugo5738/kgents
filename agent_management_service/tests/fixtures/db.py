@@ -20,8 +20,12 @@ from agent_management_service.models.agent_version import AgentVersion
 
 # Create a PostgreSQL engine for testing
 # Use NullPool to avoid connection pool issues during tests
+
+# Convert the PostgresDsn to a string for SQLAlchemy compatibility
+database_url_str = str(settings.DATABASE_URL)
+
 engine = create_async_engine(
-    settings.database_url,
+    database_url_str,
     poolclass=NullPool,
     echo=False,  # Set to True for debugging SQL
     future=True  # Use SQLAlchemy 2.0 style
@@ -62,7 +66,7 @@ async def setup_test_database():
     Set up the test database once per test session.
     This creates the necessary tables and schema, including a mock of Supabase's auth.users table.
     """
-    print(f"\nSetting up test database with URL: {settings.database_url}")
+    print(f"\nSetting up test database with URL: {database_url_str}")
     
     # Create database tables from SQLAlchemy models
     async with engine.begin() as conn:
