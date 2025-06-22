@@ -1,8 +1,8 @@
 services:
-  # auth_service:
-  #   extends:
-  #     file: auth_service/docker-compose.dev.yml
-  #     service: auth_service_dev
+  auth_service:
+    extends:
+      file: auth_service/docker-compose.dev.yml
+      service: auth_service_dev
 
   agent_management_service:
     extends:

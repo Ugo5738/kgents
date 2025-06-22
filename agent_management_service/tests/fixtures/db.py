@@ -144,8 +144,20 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
     finally:
         # Clean up regardless of test result
-        await session.close()
-        # Roll back the transaction - this undoes any database changes in the test
-        await trans.rollback()
-        # Close the connection
-        await connection.close()
+        try:
+            # First close the session
+            await session.close()
+        except Exception as e:
+            print(f"Warning: Error closing session: {e}")
+            
+        try:
+            # Then roll back the transaction
+            await trans.rollback()
+        except Exception as e:
+            print(f"Warning: Error rolling back transaction: {e}")
+        
+        try:
+            # Finally close the connection
+            await connection.close()
+        except Exception as e:
+            print(f"Warning: Error closing connection: {e}")

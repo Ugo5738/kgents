@@ -54,6 +54,64 @@ agent_management_service/
 - Python 3.12+
 - PostgreSQL 14+
 - Poetry
+- Supabase CLI (for local development with Supabase)
+
+### Database Configuration
+
+#### Development Environment
+
+The service uses two database configurations depending on the context:
+
+1. **Docker Development Environment**:
+   When running inside Docker, the service connects to the Supabase container using the container network:
+   ```
+   DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:5432/agent_management_dev_db
+   ```
+
+2. **Local Development Environment**:
+   When running locally with Supabase started via `supabase start`, use the local port mapping:
+   ```
+   DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/agent_management_dev_db
+   ```
+
+#### Test Environment
+
+Test configuration in `.env.test` should always use the local port mapping, as tests typically run outside of Docker:
+```
+DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/agent_management_test_db
+```
+
+### Database Migrations
+
+#### Initial Setup
+
+1. Development database migrations:
+   ```bash
+   # Make sure you're using the correct DATABASE_URL for your context
+   export PYTHONPATH=$PYTHONPATH:$(pwd)
+   alembic upgrade head
+   ```
+
+2. Test database setup:
+   Tests use SQLAlchemy metadata to create tables directly rather than Alembic migrations.
+   To manually initialize the test database schema:
+   ```bash
+   python scripts/setup_test_db.py
+   ```
+
+#### Adding New Migrations
+
+1. Create a new migration after model changes:
+   ```bash
+   alembic revision --autogenerate -m "description of changes"
+   ```
+
+2. Review the generated migration file in `alembic/versions/`
+
+3. Apply the migration:
+   ```bash
+   alembic upgrade head
+   ```
 
 ### Local Development
 
@@ -65,7 +123,7 @@ agent_management_service/
 2. Configure environment variables:
    ```bash
    cp .env.example .env.dev
-   # Edit .env.dev with your settings
+   # Edit .env.dev with your settings based on your environment (local or Docker)
    ```
 
 3. Run migrations:
