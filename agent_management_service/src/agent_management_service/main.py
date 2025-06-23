@@ -84,19 +84,19 @@ app.add_middleware(
 # Include API routers - all protected by default
 app.include_router(
     agent_router,
-    prefix="/api/v1/agents",
+    prefix="/agents",
     tags=["Agents"],
     dependencies=[Depends(validate_token)],
 )
 app.include_router(
     version_router,
-    prefix="/api/v1/agents/{agent_id}/versions",
+    prefix="/agents/{agent_id}/versions",
     tags=["Versions"],
     dependencies=[Depends(validate_token)],
 )
 app.include_router(
     langflow_router,
-    prefix="/api/v1/langflow",
+    prefix="/langflow",
     tags=["Langflow"],
     dependencies=[Depends(validate_token)],
 )
@@ -122,7 +122,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.get("/health")
 async def health(request: Request, db: AsyncSession = Depends(get_db)):
     """Health check endpoint optimized for Kubernetes probes.
-    
+
     This endpoint checks the service's health by:
     1. Verifying API functionality
     2. Testing database connectivity

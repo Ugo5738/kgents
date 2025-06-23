@@ -17,7 +17,9 @@ class Environment(str, Enum):
 class Settings(BaseSettings):
     """Service settings loaded from environment variables with sensible defaults."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
+    )
 
     # API configuration
     ROOT_PATH: str = Field("/api/v1", alias="AGENT_MANAGEMENT_SERVICE_ROOT_PATH")

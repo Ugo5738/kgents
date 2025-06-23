@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.config import settings
 from auth_service.db import get_db
+from auth_service.dependencies.user_deps import get_current_supabase_user, oauth2_scheme
 from auth_service.models.app_client import AppClient
 from auth_service.models.role import Role
 from auth_service.models.permission import Permission
 from auth_service.rate_limiting import limiter, TOKEN_LIMIT
 from auth_service.schemas.app_client_schemas import AppClientTokenRequest, AccessTokenResponse
 from auth_service.schemas.common_schemas import MessageResponse
+from auth_service.schemas.user_schemas import SupabaseUser
 from auth_service.security import verify_client_secret, create_m2m_access_token
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,48 @@ router = APIRouter(
     prefix="/auth",
     tags=["Token Acquisition"],
 )
+
+
+@router.get(
+    "/validate-token",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Validate a JWT token and return user data",
+    description="Validates the provided JWT token and returns the user data if valid."
+)
+@limiter.limit(TOKEN_LIMIT)
+async def validate_token(
+    request: Request,
+    current_user: SupabaseUser = Depends(get_current_supabase_user)
+) -> dict:
+    """
+    Validate a JWT token and return user data.
+    
+    This endpoint is primarily intended for service-to-service communication to validate
+    tokens received from clients. It returns user data contained in the token if the token
+    is valid.
+    
+    Args:
+        request: The HTTP request object
+        current_user: The user obtained from the valid token
+        
+    Returns:
+        dict: User data extracted from the token
+        
+    Raises:
+        HTTPException: If the token is invalid or expired (401) or if any other error occurs (500)
+    """
+    # If we get here, the token is valid since get_current_supabase_user already validated it
+    # Convert user object to a dictionary for the response
+    user_data = {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "aud": current_user.aud,
+        "user_metadata": current_user.user_metadata,
+        "app_metadata": current_user.app_metadata,
+    }
+    
+    return user_data
 
 
 @router.post(
