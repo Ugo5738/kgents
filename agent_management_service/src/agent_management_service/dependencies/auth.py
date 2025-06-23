@@ -34,7 +34,11 @@ async def get_current_user_id(
         raise RuntimeError("User data not found in request state")
     
     # Extract user ID from the validated token data
-    user_id = request.state.user.get("sub") or request.state.user.get("user_id")
+    # The auth_service returns the user ID in the "id" field
+    user_id = request.state.user.get("id") or request.state.user.get("sub") or request.state.user.get("user_id")
+    
+    if not user_id:
+        raise ValueError(f"User ID not found in token data. Available fields: {list(request.state.user.keys())}")
     
     # Return as UUID
     return UUID(user_id)
