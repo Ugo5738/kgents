@@ -12,17 +12,29 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /app
 
+# Install netcat for the entrypoint script
+RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/*
+
 # Install Poetry
 RUN pip install poetry
 
-# Copy only pyproject.toml first to leverage Docker cache
-COPY pyproject.toml ./
+# Copy only pyproject.toml and poetry.lock to leverage Docker cache
+COPY pyproject.toml poetry.lock ./
 
-# Generate the lock file if it doesn't exist and install all dependencies
-RUN poetry lock && poetry install --no-root
+# Install all dependencies, including dev dependencies
+RUN poetry install --no-root
+
+# Copy the shared library code into the container
+COPY ../shared ./shared
 
 # Copy the entire service source code
 COPY . .
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose the port the app runs on
 EXPOSE 8000

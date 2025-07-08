@@ -1,4 +1,3 @@
-import logging
 import uuid
 from typing import Optional
 
@@ -9,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.db import get_db
 from auth_service.dependencies.user_deps import require_admin_user
+from auth_service.logging_config import logger
 from auth_service.models.role import Role
 from auth_service.schemas.common_schemas import MessageResponse
 from auth_service.schemas.role_schemas import (
@@ -18,8 +18,6 @@ from auth_service.schemas.role_schemas import (
     RoleUpdate,
 )
 from auth_service.schemas.user_schemas import SupabaseUser
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["admin", "roles"],

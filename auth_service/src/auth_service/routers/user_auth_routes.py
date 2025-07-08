@@ -1,23 +1,25 @@
-import logging
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse
 from gotrue.errors import AuthApiError as SupabaseAPIError
 from gotrue.types import UserAttributes
-from sqlalchemy.exc import SQLAlchemyError  # Added
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from supabase._async.client import AsyncClient as AsyncSupabaseClient
 
 from auth_service.config import Environment
 from auth_service.config import Settings as AppSettingsType  # For type hinting settings
-from auth_service.crud import user_crud
+from auth_service.crud.profiles import (
+    create_profile,
+    get_profile_by_user_id,
+    get_profile_by_username,
+)
 from auth_service.db import get_db
 from auth_service.dependencies import (
     get_app_settings,
     get_current_supabase_user,
     oauth2_scheme,
 )
+from auth_service.logging_config import logger
 from auth_service.rate_limiting import (
     LOGIN_LIMIT,
     PASSWORD_RESET_LIMIT,
@@ -28,8 +30,6 @@ from auth_service.schemas.common_schemas import MessageResponse
 from auth_service.schemas.user_schemas import *
 from auth_service.security_audit import *
 from auth_service.supabase_client import get_supabase_client
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/auth/users",
@@ -115,7 +115,6 @@ async def login_magic_link(
         return MagicLinkSentResponse(
             message=f"Magic link sent to {request_data.email}. Please check your inbox."
         )
-
     except SupabaseAPIError as e:
         logger.warning(
             f"Supabase API error during magic link request for {request_data.email}: {e.message} (Status: {e.status})"
@@ -127,7 +126,6 @@ async def login_magic_link(
         elif e.status and e.status == 500:
             http_status_code = status.HTTP_502_BAD_GATEWAY
             detail = "Authentication service provider returned an error."
-
         raise HTTPException(status_code=http_status_code, detail=detail)
     except Exception as e:
         logger.error(
@@ -178,7 +176,7 @@ async def register_user(
             )
 
         profile_data = ProfileCreate(user_id=supa_user.id, **user_in.model_dump())
-        created_profile = await user_crud.create_profile_in_db(
+        created_profile = await create_profile(
             db_session=db_session, profile_in=profile_data
         )
 
@@ -450,10 +448,8 @@ async def get_current_user_profile(
     """
     logger.info(f"Fetching profile for current user: {current_user.id}")
 
-    # Use the user_crud function to get the profile
-    profile = await user_crud.get_profile_by_user_id_from_db(
-        db_session, current_user.id
-    )
+    # Use the profile crud function to get the profile
+    profile = await get_profile_by_user_id(db_session, current_user.id)
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found."
@@ -465,7 +461,7 @@ async def get_current_user_profile(
 
     if "username" in update_data and update_data["username"] is not None:
         if update_data["username"] != profile.username:
-            existing_profile = await user_crud.get_profile_by_username(
+            existing_profile = await get_profile_by_username(
                 db_session, update_data["username"]
             )
             if existing_profile and existing_profile.user_id != current_user.id:
@@ -496,9 +492,7 @@ async def update_current_user_profile(
     )
 
     # 1. Fetch the current user's profile using the CRUD function
-    profile = await user_crud.get_profile_by_user_id_from_db(
-        db_session, current_user.id
-    )
+    profile = await get_profile_by_user_id(db_session, current_user.id)
     if not profile:
         logger.warning(
             f"Profile not found for user {current_user.id} during update attempt."
@@ -522,7 +516,7 @@ async def update_current_user_profile(
         new_username = str(update_data["username"])  # Ensure it's a string
         # Only check for conflict if the new username is different from the current one
         if new_username != profile.username:
-            existing_profile_with_username = await user_crud.get_profile_by_username(
+            existing_profile_with_username = await get_profile_by_username(
                 db_session, new_username
             )
             if (
@@ -684,9 +678,7 @@ async def oauth_login_callback(
                 "Authentication provider did not return valid user information."
             )
 
-        existing_profile = await user_crud.get_profile_by_user_id_from_db(
-            db_session, supa_user.id
-        )
+        existing_profile = await get_profile_by_user_id(db_session, supa_user.id)
         if not existing_profile:
             profile_data = ProfileCreate(
                 user_id=supa_user.id,
@@ -697,7 +689,7 @@ async def oauth_login_callback(
                     supa_user.user_metadata.get("full_name", "").split(" ")[1:]
                 ),
             )
-            await user_crud.create_profile_in_db(db_session, profile_in=profile_data)
+            await create_profile(db_session, profile_in=profile_data)
 
         log_oauth_event(request, provider.value, user_id=supa_user.id, status="success")
         response.status_code = status.HTTP_200_OK

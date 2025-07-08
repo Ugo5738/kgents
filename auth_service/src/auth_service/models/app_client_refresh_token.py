@@ -1,14 +1,12 @@
-import uuid
-
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, func
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
-from src.auth_service.db import Base
+
+from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class AppClientRefreshToken(Base):
+class AppClientRefreshToken(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "app_client_refresh_tokens"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     app_client_id = Column(
         UUID(as_uuid=True),
         ForeignKey("app_clients.id", ondelete="CASCADE"),
@@ -17,9 +15,6 @@ class AppClientRefreshToken(Base):
     )
     token_hash = Column(String, unique=True, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
     revoked_at = Column(
         DateTime(timezone=True), nullable=True
     )  # Timestamp when the token was revoked

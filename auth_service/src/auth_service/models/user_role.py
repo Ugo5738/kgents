@@ -1,20 +1,11 @@
-import uuid
-
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    PrimaryKeyConstraint,
-    func,
-)
+from sqlalchemy import Column, DateTime, ForeignKey, ForeignKeyConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from src.auth_service.db import Base
+from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class UserRole(Base):
+class UserRole(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "user_roles"
 
     user_id = Column(
@@ -43,14 +34,14 @@ class UserRole(Base):
     # The overlaps parameter is used to acknowledge that these relationships may copy
     # the same columns as other relationships in related models.
     role = relationship(
-        "Role", 
-        back_populates="user_roles", 
-        overlaps="users,profile_role,profiles"
+        "Role",
+        back_populates="user_roles",
+        overlaps="users,profile_role,profiles",
     )
     user_profile = relationship(
-        "Profile", 
-        back_populates="user_roles", 
-        overlaps="roles,user_role,roles"
+        "Profile",
+        back_populates="user_roles",
+        overlaps="roles,user_role,roles",
     )
 
     def __repr__(self):

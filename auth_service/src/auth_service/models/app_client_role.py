@@ -2,10 +2,10 @@ from sqlalchemy import Column, DateTime, ForeignKey, PrimaryKeyConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from src.auth_service.db import Base
+from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class AppClientRole(Base):
+class AppClientRole(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "app_client_roles"
 
     app_client_id = Column(
@@ -25,7 +25,9 @@ class AppClientRole(Base):
     )
 
     # Relationships
-    role = relationship("Role", back_populates="app_client_association_objects", overlaps="app_clients")
+    role = relationship(
+        "Role", back_populates="app_client_association_objects", overlaps="app_clients"
+    )
     app_client = relationship("AppClient", overlaps="roles")
 
     def __repr__(self):

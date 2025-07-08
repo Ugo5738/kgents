@@ -1,27 +1,10 @@
-from fastapi import APIRouter
+"""
+Exports the main API routers for the Agent Management Service.
+"""
 
-from agent_management_service.routers import agent_routes, version_routes, langflow_routes
+from .agent_routes import router as agent_router
+from .health_routes import router as health_router
+from .langflow_routes import router as langflow_router
+from .version_routes import router as version_router
 
-# Main API router
-api_router = APIRouter(prefix="/api/v1")
-
-# Include sub-routers
-api_router.include_router(
-    agent_routes.router,
-    prefix="/agents",
-    tags=["agents"]
-)
-
-api_router.include_router(
-    version_routes.router,
-    prefix="/agents/{agent_id}/versions",
-    tags=["versions"]
-)
-
-api_router.include_router(
-    langflow_routes.router,
-    prefix="/langflow",
-    tags=["langflow"]
-)
-
-__all__ = ["api_router"]
+__all__ = ["agent_router", "version_router", "langflow_router", "health_router"]

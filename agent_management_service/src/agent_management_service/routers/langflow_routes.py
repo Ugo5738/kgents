@@ -1,72 +1,23 @@
-from typing import Any, Dict, Optional
+from typing import Optional
 from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_management_service.config import settings
-from agent_management_service.crud import agents as agent_crud
-from agent_management_service.db import get_db
-from agent_management_service.dependencies import get_current_user_id
-from agent_management_service.schemas.agent import (
-    Agent,
-    AgentCreate,
-    AgentStatus,
-    AgentUpdate,
+from ..config import settings
+from ..crud import agents as agent_crud
+from ..db import get_db
+from ..dependencies import get_current_user_id
+from ..schemas.agent import Agent, AgentStatus, AgentUpdate
+from ..schemas.langflow_schemas import LangflowFlow, LangflowImportResponse
+from ..services import langflow_service
+
+router = APIRouter(
+    prefix="/langflow",
+    tags=["Langflow Integration"],
+    dependencies=[Depends(get_current_user_id)],
 )
-
-router = APIRouter()
-
-
-class LangflowFlow(BaseModel):
-    """Schema for Langflow flow JSON payload."""
-
-    data: Dict[str, Any] = Field(..., description="Langflow flow configuration")
-    name: str = Field(..., description="Flow name")
-    description: Optional[str] = Field(None, description="Flow description")
-    id: Optional[str] = Field(None, description="Flow ID in Langflow")
-
-
-class LangflowImportResponse(BaseModel):
-    """Response schema for imported Langflow flow."""
-
-    agent_id: UUID = Field(..., description="ID of the created or updated agent")
-    name: str = Field(..., description="Name of the agent")
-    message: str = Field(..., description="Success message")
-    status: str = Field(..., description="Status of the import operation")
-
-
-async def validate_langflow_instance():
-    """
-    Check if the configured Langflow instance is reachable.
-
-    Raises:
-        HTTPException: If Langflow instance is not configured or unreachable
-    """
-    if not settings.LANGFLOW_API_URL:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Langflow integration is not configured",
-        )
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.LANGFLOW_API_URL.rstrip('/')}/health", timeout=5.0
-            )
-
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Langflow instance is not available",
-            )
-    except (httpx.ConnectError, httpx.TimeoutException) as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to connect to Langflow instance: {str(e)}",
-        )
 
 
 @router.post(
@@ -93,63 +44,20 @@ async def import_langflow_flow(
     If agent_id is provided, update that agent. Otherwise, create a new one.
     """
     # Check if Langflow is available
-    await validate_langflow_instance()
+    await langflow_service.validate_langflow_instance()
 
-    # Set up the agent configuration from the flow data
-    agent_config = {"langflow_data": flow.data, "source": "langflow_import"}
-
-    if agent_id:
-        # Update existing agent
-        try:
-            agent = await agent_crud.get_agent(db, agent_id, user_id)
-
-            # Prepare update data
-            agent_update = AgentUpdate(
-                name=flow.name, description=flow.description, config=agent_config
-            )
-
-            # Update the agent
-            updated_agent = await agent_crud.update_agent(
-                db, agent_id, agent_update, user_id, create_version=create_version
-            )
-
-            return LangflowImportResponse(
-                agent_id=updated_agent.id,
-                name=updated_agent.name,
-                message="Agent updated successfully from Langflow flow",
-                status="success",
-            )
-
-        except HTTPException as e:
-            if e.status_code == 404:
-                # Agent not found, fall through to create a new one
-                pass
-            else:
-                raise
-
-    # Create new agent
-    agent_create = AgentCreate(
-        name=flow.name,
-        description=flow.description or f"Imported from Langflow: {flow.name}",
-        config=agent_config,
-        status=AgentStatus.DRAFT,
+    agent = await agent_crud.import_agent_from_langflow(
+        db=db,
+        flow_data=flow,
+        user_id=user_id,
+        existing_agent_id=agent_id,
+        create_version=create_version,
     )
 
-    # Check for name conflicts
-    existing_agent = await agent_crud.get_agent_by_name(db, flow.name, user_id)
-    if existing_agent:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Agent with name '{flow.name}' already exists",
-        )
-
-    # Create new agent
-    new_agent = await agent_crud.create_agent(db, agent_create, user_id)
-
     return LangflowImportResponse(
-        agent_id=new_agent.id,
-        name=new_agent.name,
-        message="New agent created from Langflow flow",
+        agent_id=agent.id,
+        name=agent.name,
+        message=f"Agent '{agent.name}' imported successfully.",
         status="success",
     )
 
@@ -174,7 +82,7 @@ async def export_agent_to_langflow(
     active version (for published agents).
     """
     # Check if Langflow is available
-    await validate_langflow_instance()
+    await langflow_service.validate_langflow_instance()
 
     # Get the agent
     agent = await agent_crud.get_agent(db, agent_id, user_id)
@@ -228,7 +136,7 @@ async def sync_agent_with_langflow(
     saved back to the agent in our system.
     """
     # Check if Langflow is available
-    await validate_langflow_instance()
+    await langflow_service.validate_langflow_instance()
 
     # Get the agent
     agent = await agent_crud.get_agent(db, agent_id, user_id)

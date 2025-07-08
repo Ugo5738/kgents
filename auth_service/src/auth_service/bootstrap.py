@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from supabase._async.client import AsyncClient as AsyncSupabaseClient
 
 from auth_service.config import settings as app_settings
-from auth_service.crud import user_crud
+from auth_service.crud import profiles as profile_crud
 from auth_service.models import Permission, Role, RolePermission, UserRole
 from auth_service.schemas.user_schemas import ProfileCreate, SupabaseUser
 from auth_service.supabase_client import get_supabase_admin_client
@@ -250,9 +250,7 @@ async def create_admin_profile(db: AsyncSession, admin_supa_user: SupabaseUser) 
         logger.error("Invalid SupabaseUser data for profile creation.")
         return False
 
-    existing_profile = await user_crud.get_profile_by_user_id_from_db(
-        db, admin_supa_user.id
-    )
+    existing_profile = await profile_crud.get_profile_by_user_id(db, admin_supa_user.id)
     if existing_profile:
         logger.info(
             f"Local profile for admin user {admin_supa_user.id} already exists."
@@ -269,7 +267,7 @@ async def create_admin_profile(db: AsyncSession, admin_supa_user: SupabaseUser) 
         first_name="Admin",
         last_name="User",
     )
-    created_profile = await user_crud.create_profile_in_db(db, profile_data)
+    created_profile = await profile_crud.create_profile(db, profile_data)
 
     if created_profile:
         logger.info(f"Local profile created for admin {admin_supa_user.id}")

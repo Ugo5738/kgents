@@ -1,4 +1,3 @@
-import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -8,9 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from auth_service.db import get_db
 from auth_service.dependencies.user_deps import require_admin_user
-from auth_service.models.app_client import AppClient
-from auth_service.models.app_client_role import AppClientRole
-from auth_service.models.role import Role
+from auth_service.logging_config import logger
+from auth_service.models import AppClient, AppClientRole, Role
 from auth_service.schemas.app_client_role_schemas import (
     AppClientRoleAssign,
     AppClientRoleListResponse,
@@ -20,7 +18,6 @@ from auth_service.schemas.common_schemas import MessageResponse
 from auth_service.schemas.user_schemas import SupabaseUser
 
 router = APIRouter(tags=["admin", "client-roles"])
-logger = logging.getLogger(__name__)
 
 
 @router.post(

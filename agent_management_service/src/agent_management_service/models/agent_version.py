@@ -1,24 +1,20 @@
-import uuid
-
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, Text, func
+from sqlalchemy import JSON, Column, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from src.agent_management_service.db import Base
+from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class AgentVersion(Base):
+class AgentVersion(Base, UUIDMixin, TimestampMixin):
     """
     Model representing a specific version of an agent.
 
     Each time an agent configuration is modified, a new version is created
     to maintain a history of changes.
     """
+
     __tablename__ = "agent_versions"
 
-    # Primary key with UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
     # Version metadata
     version_number = Column(
         Integer,
@@ -42,7 +38,7 @@ class AgentVersion(Base):
     # Link to parent agent - using string reference to avoid circular dependency
     agent_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("agents.id", ondelete="CASCADE"), 
+        ForeignKey("agents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -52,7 +48,7 @@ class AgentVersion(Base):
         back_populates="versions",
         foreign_keys=[agent_id],
         # Explicitly use primaryjoin to define the relationship
-        primaryjoin="AgentVersion.agent_id == Agent.id", 
+        primaryjoin="AgentVersion.agent_id == Agent.id",
     )
 
     # Ownership - links to auth.users
@@ -62,15 +58,6 @@ class AgentVersion(Base):
         UUID(as_uuid=True),
         nullable=False,
         index=True,
-    )
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
     )
 
     def __repr__(self):

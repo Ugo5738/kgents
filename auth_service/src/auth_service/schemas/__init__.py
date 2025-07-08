@@ -1,29 +1,26 @@
+from .app_client_schemas import AppClientCreatedResponse  # Added
+from .app_client_schemas import AppClientCreateRequest  # Added
+from .app_client_schemas import AppClientTokenData
 from .common_schemas import MessageResponse
 from .user_schemas import (
-    ProfileBase,
-    ProfileCreate,
-    ProfileUpdate,
-    ProfileResponse,
-    UserProfileUpdateRequest,
-    SupabaseUser,
-    SupabaseSession,
-    OAuthProvider,
-    OAuthRedirectResponse,
-    UserLoginRequest,
     MagicLinkLoginRequest,
     MagicLinkSentResponse,
+    OAuthProvider,
+    OAuthRedirectResponse,
     PasswordResetRequest,
     PasswordResetResponse,
     PasswordUpdateRequest,
     PasswordUpdateResponse,
+    ProfileBase,
+    ProfileCreate,
+    ProfileResponse,
+    ProfileUpdate,
+    SupabaseSession,
+    SupabaseUser,
     UserCreate,
+    UserLoginRequest,
+    UserProfileUpdateRequest,
     UserResponse,
-    UserTokenData, # Added
-)
-from .app_client_schemas import (
-    AppClientTokenData,
-    AppClientCreateRequest,  # Added
-    AppClientCreatedResponse, # Added
 )
 
 __all__ = [
@@ -46,8 +43,7 @@ __all__ = [
     "PasswordUpdateResponse",
     "UserCreate",
     "UserResponse",
-    "UserTokenData",
     "AppClientTokenData",
     "AppClientCreateRequest",  # Added
-    "AppClientCreatedResponse", # Added
+    "AppClientCreatedResponse",  # Added
 ]

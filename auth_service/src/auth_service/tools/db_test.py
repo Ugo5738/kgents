@@ -28,7 +28,7 @@ sys.path.append(project_root)
 
 # Now import from the proper location based on project structure
 from auth_service.config import settings
-from auth_service.db import AsyncSessionLocal, get_db
+from auth_service.db import async_session_factory, get_db
 
 # Check if pytest is available
 try:
@@ -210,10 +210,10 @@ async def test_sqlalchemy_connection():
 
         # Create session
         print("Creating SQLAlchemy session...")
-        TestAsyncSessionLocal = sessionmaker(
+        Testasync_session_factory = sessionmaker(
             test_engine, expire_on_commit=False, class_=AsyncSession
         )
-        session = TestAsyncSessionLocal()
+        session = Testasync_session_factory()
 
         print("Testing connection...")
         start = time.time()

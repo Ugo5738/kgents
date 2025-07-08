@@ -7,7 +7,7 @@ services:
     environment:
       - ENVIRONMENT=testing
       # Override database URL for an isolated test database
-      - TOOL_REGISTRY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@supabase_db_kgents:5432/test_tool_db
+      - TOOL_REGISTRY_DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:5432/tool_registry_dev_db
     env_file:
       - ../.env
     networks:

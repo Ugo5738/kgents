@@ -10,8 +10,13 @@ services:
       - ./src:/app/src
       - ./alembic:/app/alembic
       - ./tests:/app/tests
+      - ./scripts:/app/scripts
     env_file:
       - ./.env.dev # Load development environment variables
+    environment:
+      # Pass these variables to the container for the entrypoint script
+      - AGENT_MANAGEMENT_SERVICE_POSTGRES_HOST=supabase_db_kgents
+      - AGENT_MANAGEMENT_SERVICE_POSTGRES_PORT=5432
     networks:
       - kgents_network
       - supabase_network_kgents # Connect to Supabase network from root compose

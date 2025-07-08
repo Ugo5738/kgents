@@ -2,39 +2,28 @@
 from fastapi import APIRouter, Depends
 
 from ..dependencies import require_admin_user
-from . import (
-    _admin_client_role_routes,
-    _admin_client_routes,
-    _admin_permission_routes,
-    _admin_role_permission_routes,
-    _admin_role_routes,
-    _admin_user_role_routes,
-)
+from ._admin_client_role_routes import router as client_role_router
+from ._admin_client_routes import router as client_router
+from ._admin_permission_routes import router as permission_router
+from ._admin_role_permission_routes import router as role_permission_router
+from ._admin_role_routes import router as role_router
+from ._admin_user_role_routes import router as user_role_router
 
-# This is the main router that will be included in the FastAPI app
-router = APIRouter(
-    # All routes in this router will be protected by the admin dependency
-    dependencies=[Depends(require_admin_user)]
-)
+# This is the main router for all /admin endpoints
+# It enforces admin authentication for every route included below.
+router = APIRouter(dependencies=[Depends(require_admin_user)])
+
 
 # Include each sub-router with its own specific prefix
+router.include_router(client_router, prefix="/clients", tags=["Admin - App Clients"])
+router.include_router(role_router, prefix="/roles", tags=["Admin - Roles"])
 router.include_router(
-    _admin_client_routes.router, prefix="/clients", tags=["Admin - App Clients"]
+    permission_router, prefix="/permissions", tags=["Admin - Permissions"]
+)
+router.include_router(user_role_router, prefix="/users", tags=["Admin - User Roles"])
+router.include_router(
+    client_role_router, prefix="/clients", tags=["Admin - Client Roles"]
 )
 router.include_router(
-    _admin_role_routes.router, prefix="/roles", tags=["Admin - Roles"]
-)
-router.include_router(
-    _admin_permission_routes.router, prefix="/permissions", tags=["Admin - Permissions"]
-)
-router.include_router(
-    _admin_user_role_routes.router, prefix="/users", tags=["Admin - User Roles"]
-)
-router.include_router(
-    _admin_client_role_routes.router, prefix="/clients", tags=["Admin - Client Roles"]
-)
-router.include_router(
-    _admin_role_permission_routes.router,
-    prefix="/roles",
-    tags=["Admin - Role Permissions"],
+    role_permission_router, prefix="/roles", tags=["Admin - Role Permissions"]
 )

@@ -12,6 +12,9 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /app
 
+# Install netcat for the entrypoint script
+RUN apt-get update && apt-get install -y netcat-openbsd postgresql-client && rm -rf /var/lib/apt/lists/*
+
 # Install Poetry
 RUN pip install poetry
 
@@ -21,8 +24,17 @@ COPY pyproject.toml poetry.lock ./
 # Install all dependencies, including dev dependencies
 RUN poetry install --no-root
 
+# Copy the shared library code into the container
+COPY ../shared ./shared
+
 # Copy the entire service source code
 COPY . .
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose the port the app runs on
 EXPOSE 8000

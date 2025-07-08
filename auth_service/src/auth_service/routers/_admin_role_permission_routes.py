@@ -1,17 +1,14 @@
-import logging
 import uuid
-from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.db import get_db
 from auth_service.dependencies.user_deps import require_admin_user
-from auth_service.models.permission import Permission
-from auth_service.models.role import Role
-from auth_service.models.role_permission import RolePermission
+from auth_service.logging_config import logger
+from auth_service.models import Permission, Role, RolePermission
 from auth_service.schemas.common_schemas import MessageResponse
 from auth_service.schemas.role_permission_schemas import (
     RolePermissionAssign,
@@ -19,8 +16,6 @@ from auth_service.schemas.role_permission_schemas import (
     RolePermissionResponse,
 )
 from auth_service.schemas.user_schemas import SupabaseUser
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/{role_id}/permissions",

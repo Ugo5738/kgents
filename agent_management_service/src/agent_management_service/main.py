@@ -10,10 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_management_service.config import settings
 from agent_management_service.db import get_db
-from agent_management_service.routers.agent_routes import router as agent_router
-from agent_management_service.routers.langflow_routes import router as langflow_router
-from agent_management_service.routers.version_routes import router as version_router
-from agent_management_service.security import validate_token
+
+from .routers import agent_router, health_router, langflow_router, version_router
 
 
 @asynccontextmanager
@@ -81,25 +79,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routers - all protected by default
-app.include_router(
-    agent_router,
-    prefix="/agents",
-    tags=["Agents"],
-    dependencies=[Depends(validate_token)],
-)
-app.include_router(
-    version_router,
-    prefix="/agents/{agent_id}/versions",
-    tags=["Versions"],
-    dependencies=[Depends(validate_token)],
-)
-app.include_router(
-    langflow_router,
-    prefix="/langflow",
-    tags=["Langflow"],
-    dependencies=[Depends(validate_token)],
-)
+# --- Include API routers - all protected by default ---
+app.include_router(health_router)
+app.include_router(agent_router)
+app.include_router(version_router)
+app.include_router(langflow_router)
 
 
 # Exception handlers

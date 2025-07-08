@@ -99,7 +99,7 @@ class SupabaseUser(BaseModel):
         from_attributes=True,
         arbitrary_types_allowed=True,
         populate_by_name=True,
-        validate_assignment=True
+        validate_assignment=True,
     )
 
 
@@ -154,7 +154,7 @@ class PasswordResetResponse(BaseModel):
 
 class EmailVerificationRequest(BaseModel):
     email: EmailStr
-    
+
 
 class MessageResponse(BaseModel):
     message: str
@@ -193,10 +193,3 @@ class UserResponse(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
-
-# Added from old models.py
-class UserTokenData(BaseModel):
-    user_id: str = Field(..., alias="sub")
-    roles: List[str] = Field(default_factory=list)
-    permissions: List[str] = Field(default_factory=list)
-    exp: int

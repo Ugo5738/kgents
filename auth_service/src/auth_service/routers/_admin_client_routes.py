@@ -1,18 +1,15 @@
-import logging
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from sqlalchemy import delete, select, update
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.db import get_db
 from auth_service.dependencies.user_deps import require_admin_user
-from auth_service.models.app_client import AppClient
-from auth_service.models.role import Role
-
-# from auth_service.models.app_client_role_model import AppClientRole # Not directly used for creation here
+from auth_service.logging_config import logger
+from auth_service.models import AppClient, Role
 from auth_service.schemas.app_client_schemas import (
     AppClientCreatedResponse,
     AppClientCreateRequest,
@@ -21,12 +18,8 @@ from auth_service.schemas.app_client_schemas import (
     AppClientUpdateRequest,
 )
 from auth_service.schemas.common_schemas import MessageResponse
-from auth_service.schemas.user_schemas import (
-    SupabaseUser,  # For type hinting require_admin_user
-)
+from auth_service.schemas.user_schemas import SupabaseUser
 from auth_service.security import generate_client_secret, hash_secret
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["Admin - App Clients"],

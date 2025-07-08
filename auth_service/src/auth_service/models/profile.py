@@ -1,10 +1,7 @@
-import uuid
-
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    ForeignKey,
     ForeignKeyConstraint,
     String,
     Table,
@@ -13,7 +10,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from src.auth_service.db import Base
+from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 # Define a placeholder for Supabase's auth.users table.
 # This makes SQLAlchemy's metadata aware of the table and its schema
@@ -27,7 +24,7 @@ auth_users_table = Table(
 )
 
 
-class Profile(Base):
+class Profile(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "profiles"
 
     user_id = Column(UUID(as_uuid=True), primary_key=True)
@@ -36,30 +33,21 @@ class Profile(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
-    )
 
     # Add the inverse relationship to the Role model
     # This tells SQLAlchemy how a Profile is related to Roles through the 'user_roles' table.
     # The 'back_populates="users"' matches the relationship defined in the Role model.
     roles = relationship(
-        "Role", 
-        secondary="user_roles", 
-        back_populates="users", 
-        overlaps="user_roles,role"
+        "Role",
+        secondary="user_roles",
+        back_populates="users",
+        overlaps="user_roles,role",
     )
     user_roles = relationship(
-        "UserRole", 
-        back_populates="user_profile", 
-        cascade="all, delete-orphan", 
-        overlaps="roles,user_profile"
+        "UserRole",
+        back_populates="user_profile",
+        cascade="all, delete-orphan",
+        overlaps="roles,user_profile",
     )
 
     # Add foreign key constraint with use_alter and post_create
