@@ -2,52 +2,39 @@
 Integration tests for the complete user registration flow.
 Tests the registration route with mocked external dependencies but real internal components.
 """
-import pytest
-import pytest_asyncio
+
 import uuid
-import logging
-from datetime import datetime, timezone
+from datetime import datetime
+
+import pytest
 from fastapi import status
 from httpx import AsyncClient
-from unittest.mock import AsyncMock
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from tests.fixtures.db import get_test_engine
+
+# Import the test data manager and fixtures
+from tests.fixtures.test_data import TestDataManager
+
+from auth_service.logging_config import logger
 
 # Import our models to check database state
 from auth_service.models.profile import Profile
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-# Create a unique session ID for this test run to avoid conflicts
-SESSION_ID = datetime.now().strftime('%Y%m%d%H%M%S') + '_' + uuid.uuid4().hex[:8]
-
-# Set up logger for test output
-logger = logging.getLogger(__name__)
+# Mark all tests in this file as async
+pytestmark = pytest.mark.asyncio
 
 
-# Helper classes to mimic Supabase response structures
-class SupabaseAuthResponse:
-    def __init__(self, user, session):
-        self.user = user
-        self.session = session
-
-class SupabaseUser:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        
-    def model_dump(self):
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
-
-class SupabaseSession:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        
-    def model_dump(self):
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+# We're now using the enhanced mock Supabase client from fixtures/mocks.py
+# which provides MockSupabaseUser, MockSupabaseSession, and MockSupabaseResponse classes
 
 
-@pytest.mark.asyncio
-async def test_register_user_integration(client, db_session, mock_supabase_client):
+async def test_register_user_integration(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    mock_supabase_client,
+    test_data: TestDataManager,
+):
     """
     Integration test for user registration flow.
     Tests the complete registration process including:
@@ -57,85 +44,157 @@ async def test_register_user_integration(client, db_session, mock_supabase_clien
     4. Database profile creation
     5. Response formatting
     """
-    # Get the test user ID from the mock Supabase client
-    test_user_id = mock_supabase_client.test_user_id
-    
-    # Import the seed_test_user helper to create a user in auth.users table
-    from tests.fixtures.helpers import seed_test_user
-    
-    # Create user metadata with the username
-    username = f"testuser_{SESSION_ID}"
-    email = f"test.user.{SESSION_ID}@example.com"
-    
+    # Configure a custom user in the mock Supabase client
+    test_email = f"test.user.{uuid.uuid4().hex[:8]}@example.com"
+    test_username = f"testuser_{uuid.uuid4().hex[:8]}"
+
+    # Generate a fixed test user ID to use throughout the test
+    test_user_id = str(uuid.uuid4())
+
+    # Create a new mock response with our fixed test user ID
+    from tests.fixtures.mocks import MockSupabaseResponse
+
+    # Create user data with our fixed ID
+    test_user_data = {
+        "id": test_user_id,
+        "email": test_email,
+        "user_metadata": {"username": test_username},
+        "app_metadata": {},
+        "phone": None,
+        "phone_confirmed_at": None,
+        "email_confirmed_at": datetime.utcnow().isoformat(),
+        "confirmed_at": datetime.utcnow().isoformat(),
+        "last_sign_in_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+        "identities": [],
+        "aud": "authenticated",
+        "role": "authenticated",
+    }
+
+    # Create a mock response with our fixed test user ID
+    mock_response = MockSupabaseResponse(test_user_data)
+
+    # Override sign_up to return our specific mock response
+    mock_supabase_client.auth.sign_up.return_value = mock_response
+
+    # Update the test_user_id on the mock client for consistency
+    mock_supabase_client.test_user_id = test_user_id
+    mock_supabase_client.auth.test_user_id = test_user_id
+
+    logger.info(f"Configured mock Supabase with user ID: {test_user_id}")
+
+    # We need to directly set up the test user in the auth.users table for the foreign key constraint
+    # Using a fresh connection to avoid transaction issues
+    engine = get_test_engine()
+
     try:
-        # Use our modular helper to seed the test user with the known test_user_id
-        await seed_test_user(
-            db_session=db_session,
-            user_id=test_user_id,
-            email=email,
-            username=username
-        )
-        logger.info(f"Created test user in auth.users: {test_user_id} | {username}")
+        # Create independent connection to insert auth user
+        async with engine.begin() as conn:
+            # Create the auth user to satisfy FK constraint
+            await conn.execute(
+                text(
+                    """
+                INSERT INTO auth.users 
+                    (id, email, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data) 
+                VALUES 
+                    (:user_id, :email, now(), now(), now(), '{}'::jsonb, '{}'::jsonb)
+                ON CONFLICT (id) DO NOTHING
+            """
+                ),
+                {"user_id": test_user_id, "email": test_email},
+            )
+
+            # Verify the user was actually inserted - this is crucial
+            result = await conn.execute(
+                text(
+                    """
+                SELECT id FROM auth.users WHERE id = :user_id
+            """
+                ),
+                {"user_id": test_user_id},
+            )
+
+            row = await result.fetchone()
+            if row:
+                logger.info(f"Verified user in auth.users table: {row[0]}")
+            else:
+                logger.error(
+                    f"Failed to find user {test_user_id} in auth.users after insertion"
+                )
+                raise RuntimeError(
+                    f"User {test_user_id} not found in auth.users after insertion"
+                )
+
+        logger.info(f"Created mock Supabase user in auth.users table: {test_user_id}")
     except Exception as e:
-        logger.error(f"Error creating test user: {e}")
-        raise
-    
+        logger.error(f"Error creating mock user in auth.users table: {e}")
+        raise  # Raise the exception to fail the test - we need to know about insert failures
+
     # Arrange - Test User Data with unique identifiers
     user_data = {
-        "email": f"test.user.{SESSION_ID}@example.com",
+        "email": test_email,
         "password": "SecurePassword123!",
-        "username": f"testuser_{SESSION_ID}",
+        "username": test_username,
         "first_name": "Test",
-        "last_name": "User"
+        "last_name": "User",
     }
-    
-    logger.info(f"Testing integration registration with user: {user_data['email']} and ID: {test_user_id}")
-    
+
+    logger.info(f"Testing integration registration with user: {user_data['email']}")
+
     # Act - Make request to registration endpoint
-    response = await client.post(
-        "/api/v1/auth/users/register", 
-        json=user_data
-    )
-    
+    response = await client.post("/auth/users/register", json=user_data)
+
     # Log response for debugging
     logger.info(f"Integration registration response status: {response.status_code}")
     if response.status_code != status.HTTP_201_CREATED:
         logger.error(f"Integration registration response: {response.text}")
-    
+
     # Assert - Check the response
-    assert response.status_code == status.HTTP_201_CREATED, f"Expected 201, got {response.status_code}: {response.text}"
-    
+    assert (
+        response.status_code == status.HTTP_201_CREATED
+    ), f"Expected 201, got {response.status_code}: {response.text}"
+
     # Parse response data
     data = response.json()
-    
+
     # 1. Response structure check
     assert "message" in data, "Response missing 'message' field"
     assert "profile" in data, "Response missing 'profile' field"
-    
+
     # 2. Response content check
     # Since our mock user has email_confirmed_at set, the message will be 'User registered successfully.'
     assert data["message"] == "User registered successfully."
-    assert data["profile"]["email"] == user_data["email"] 
-    assert data["profile"]["username"] == user_data["username"]
-    
-    # 3. Verify database state using the real test database session
+
+    # Get the profile details from the response
+    profile_data = data["profile"]
+
+    # 3. Check profile fields in response
+    assert profile_data["email"] == user_data["email"]
+    assert profile_data["username"] == user_data["username"]
+    assert profile_data["first_name"] == user_data["first_name"]
+    assert profile_data["last_name"] == user_data["last_name"]
+    assert "id" in profile_data, "Profile should have an ID"
+
+    # 4. Verify that a profile was actually created in the database
+    # This verifies the database operation actually happened
     result = await db_session.execute(
         select(Profile).where(
-            (Profile.email == user_data["email"]) &
-            (Profile.user_id == test_user_id)
+            (Profile.email == user_data["email"]) & (Profile.user_id == test_user_id)
         )
     )
     profile = result.scalars().first()
-    
-    # Verify that the profile exists with correct data
-    assert profile is not None, f"Profile for {user_data['email']} not found in the database"
-    
-    # Convert test_user_id to UUID for comparison with profile.user_id (which is a UUID object)
-    from uuid import UUID
-    test_user_uuid = UUID(test_user_id) if isinstance(test_user_id, str) else test_user_id
-    
-    # Now compare UUID objects
-    assert profile.user_id == test_user_uuid, f"Profile user_id {profile.user_id} does not match test user ID {test_user_uuid}"
+
+    assert (
+        profile is not None
+    ), f"Profile for {user_data['email']} not found in database"
+    # Convert test_user_id to UUID for comparison
+    test_user_uuid = (
+        uuid.UUID(test_user_id) if isinstance(test_user_id, str) else test_user_id
+    )
+
+    # 5. Verify database values match expected values
+    assert profile.user_id == test_user_uuid
     assert profile.email == user_data["email"]
     assert profile.username == user_data["username"]
     assert profile.first_name == user_data["first_name"]
@@ -143,30 +202,26 @@ async def test_register_user_integration(client, db_session, mock_supabase_clien
     assert profile.is_active is True
 
 
-@pytest.mark.asyncio
-async def test_register_user_invalid_data(client):
+async def test_register_user_invalid_data(client: AsyncClient):
     """Test registration with invalid data."""
     # Arrange - Invalid User Data (missing required fields)
     invalid_user_data = {
         "email": "test@example.com",
         # Missing password
-        "username": "testuser"
+        "username": "testuser",
         # Missing first_name and last_name
     }
-    
+
     logger.info("Testing registration with invalid data")
-    
+
     # Act - Make request to registration endpoint
-    response = await client.post(
-        "/api/v1/auth/users/register", 
-        json=invalid_user_data
-    )
-    
+    response = await client.post("/auth/users/register", json=invalid_user_data)
+
     logger.info(f"Invalid data response status: {response.status_code}")
-    
+
     # Assert
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    
+
     # Verify validation error details
     data = response.json()
     assert "detail" in data
@@ -176,70 +231,143 @@ async def test_register_user_invalid_data(client):
     logger.info("Validation correctly rejected invalid data")
 
 
-# Update helper classes to better match modern Pydantic style
-class SupabaseUser:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        
-    def model_dump(self):
-        """Match the Pydantic v2 naming convention for compatibility"""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
-
-class SupabaseSession:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        
-    def model_dump(self):
-        """Match the Pydantic v2 naming convention for compatibility"""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+# We're now using the MockSupabaseUser and MockSupabaseSession classes from fixtures/mocks.py
 
 
-@pytest.mark.asyncio
-async def test_register_user_supabase_error(client, db_session):
+async def test_register_user_supabase_error(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    mock_supabase_client,
+    test_data: TestDataManager,
+):
     """Test registration when Supabase throws an error."""
-    # Use a unique session ID for this test to avoid conflicts
-    error_session_id = datetime.now().strftime('%Y%m%d%H%M%S') + '_error_' + uuid.uuid4().hex[:8]
-    
+    # Configure a unique user email and username for this test
+    test_email = f"error.user.{uuid.uuid4().hex[:8]}@example.com"
+    test_username = f"erroruser_{uuid.uuid4().hex[:8]}"
+
     # Arrange - Test User Data with unique identifiers
     user_data = {
-        "email": f"error.user.{error_session_id}@example.com",
+        "email": test_email,
         "password": "SecurePassword123!",
-        "username": f"erroruser_{error_session_id}",
+        "username": test_username,
         "first_name": "Error",
-        "last_name": "Test"
+        "last_name": "Test",
     }
-    
+
     logger.info(f"Testing Supabase error handling for: {user_data['email']}")
-    
-    # For this test, we're using the mock_supabase_client fixture but we want to override
-    # its behavior just for this test to simulate an error
-    
-    # We can create a custom fixture with our AsyncClient's transport that will raise an error
-    # This is done in the app routes with dependency overrides
-    
-    # Act - Make the request (it will use the mock_supabase_client that's already configured)
-    # Since we want to test error handling, the error will be caught in the route handler
-    response = await client.post(
-        "/api/v1/auth/users/register", 
-        json=user_data,
-        headers={"X-Test-Error": "trigger-supabase-error"} # Special header our test setup could recognize
+
+    # Generate a fixed test user ID for error test
+    test_user_id = str(uuid.uuid4())
+
+    # Create a new mock response with our fixed test user ID
+    from tests.fixtures.mocks import MockSupabaseResponse
+
+    # Create user data with our fixed ID
+    test_user_data = {
+        "id": test_user_id,
+        "email": test_email,
+        "user_metadata": {"username": test_username},
+        "app_metadata": {},
+        "phone": None,
+        "phone_confirmed_at": None,
+        "email_confirmed_at": datetime.utcnow().isoformat(),
+        "confirmed_at": datetime.utcnow().isoformat(),
+        "last_sign_in_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+        "identities": [],
+        "aud": "authenticated",
+        "role": "authenticated",
+    }
+
+    # Set the test_user_id on the mock client for consistency
+    mock_supabase_client.test_user_id = test_user_id
+    mock_supabase_client.auth.test_user_id = test_user_id
+
+    # Configure the sign_up method to raise an AuthApiError for the duplicate registration test
+    from gotrue.errors import AuthApiError
+
+    mock_supabase_client.auth.sign_up.side_effect = AuthApiError(
+        "User already registered", 400, "user_already_registered"
     )
-    
+
+    logger.info(f"Configured mock Supabase with user ID: {test_user_id}")
+
+    # We need to set up the test user in the auth.users table first
+    engine = get_test_engine()
+
+    try:
+        # Create independent connection to insert auth user
+        async with engine.begin() as conn:
+            # Create the auth user to satisfy FK constraint
+            await conn.execute(
+                text(
+                    """
+                INSERT INTO auth.users 
+                    (id, email, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data) 
+                VALUES 
+                    (:user_id, :email, now(), now(), now(), '{}'::jsonb, '{}'::jsonb)
+                ON CONFLICT (id) DO NOTHING
+            """
+                ),
+                {"user_id": test_user_id, "email": test_email},
+            )
+
+            # Verify the user was actually inserted
+            result = await conn.execute(
+                text(
+                    """
+                SELECT id FROM auth.users WHERE id = :user_id
+            """
+                ),
+                {"user_id": test_user_id},
+            )
+
+            row = await result.fetchone()
+            if row:
+                logger.info(f"Verified user in auth.users table: {row[0]}")
+            else:
+                logger.error(
+                    f"Failed to find user {test_user_id} in auth.users after insertion"
+                )
+                raise RuntimeError(
+                    f"User {test_user_id} not found in auth.users after insertion"
+                )
+
+        logger.info(f"Created mock Supabase user in auth.users table: {test_user_id}")
+    except Exception as e:
+        logger.error(f"Error creating mock user in auth.users table: {e}")
+        raise  # Raise the exception to fail the test
+
+    # Configure the mock Supabase client to return an authentication error
+    # This is much cleaner with our enhanced mock infrastructure
+    mock_supabase_client.set_auth_error("sign_up")
+
+    # Act - Make the registration request which should now fail due to the mocked error
+    response = await client.post("/auth/users/register", json=user_data)
+
     logger.info(f"Supabase error test response status: {response.status_code}")
-    
-    # Assert - We should get a server error
-    # Note: This test might need adjustment based on how errors are actually handled in the routes
-    assert response.status_code != status.HTTP_201_CREATED, "Should not succeed when Supabase errors"
-    
+
+    # Assert - We should get an error status code
+    assert (
+        response.status_code != status.HTTP_201_CREATED
+    ), "Should not succeed when Supabase auth errors"
+    # In our implementation, auth errors for already registered users return 409 Conflict
+    assert (
+        response.status_code == status.HTTP_409_CONFLICT
+    ), "Should return 409 Conflict on duplicate registration error"
+
+    # Parse the response to check error details
+    data = response.json()
+    assert "detail" in data, "Error response should include detail field"
+
     # Verify no profile was created in the database despite the error
     result = await db_session.execute(
-        select(Profile).where(
-            Profile.email == user_data["email"]
-        )
+        select(Profile).where(Profile.email == user_data["email"])
     )
     profile = result.scalars().first()
-    assert profile is None, f"No profile should be created when Supabase errors, but found: {profile}"
-    
+    assert (
+        profile is None
+    ), f"No profile should be created when Supabase errors, but found: {profile}"
+
     logger.info("Supabase error test completed successfully")

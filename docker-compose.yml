@@ -3,15 +3,11 @@ services:
     extends:
       file: auth_service/docker-compose.dev.yml
       service: auth_service_dev
-    ports:
-      - "8001:8000"
 
-  agent_management_service:
-    extends:
-      file: agent_management_service/docker-compose.dev.yml
-      service: agent_management_service_dev
-    ports:
-      - "8002:8000"
+  # agent_management_service:
+  #   extends:
+  #     file: agent_management_service/docker-compose.dev.yml
+  #     service: agent_management_service_dev
 
   # tool_registry_service:
   #   extends:

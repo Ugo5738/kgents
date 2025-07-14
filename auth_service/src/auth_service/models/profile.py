@@ -1,16 +1,10 @@
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKeyConstraint,
-    String,
-    Table,
-    func,
-)
+# auth_service/src/auth_service/models/profile.py
+
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from shared.models.base import Base, TimestampMixin, UUIDMixin
+from shared.models.base import Base, TimestampMixin
 
 # Define a placeholder for Supabase's auth.users table.
 # This makes SQLAlchemy's metadata aware of the table and its schema
@@ -24,31 +18,8 @@ auth_users_table = Table(
 )
 
 
-class Profile(Base, UUIDMixin, TimestampMixin):
+class Profile(Base, TimestampMixin):
     __tablename__ = "profiles"
-
-    user_id = Column(UUID(as_uuid=True), primary_key=True)
-    email = Column(String, nullable=False, index=True)
-    username = Column(String, unique=True, nullable=True, index=True)
-    first_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    # Add the inverse relationship to the Role model
-    # This tells SQLAlchemy how a Profile is related to Roles through the 'user_roles' table.
-    # The 'back_populates="users"' matches the relationship defined in the Role model.
-    roles = relationship(
-        "Role",
-        secondary="user_roles",
-        back_populates="users",
-        overlaps="user_roles,role",
-    )
-    user_roles = relationship(
-        "UserRole",
-        back_populates="user_profile",
-        cascade="all, delete-orphan",
-        overlaps="roles,user_profile",
-    )
 
     # Add foreign key constraint with use_alter and post_create
     __table_args__ = (
@@ -56,9 +27,24 @@ class Profile(Base, UUIDMixin, TimestampMixin):
             ["user_id"],
             ["auth.users.id"],
             ondelete="CASCADE",
-            use_alter=True,  # This creates the constraint after tables are created
+            use_alter=True,
             name="fk_profile_auth_user_id",
         ),
+        {"schema": "auth_service_data"},
+    )
+
+    user_id = Column(UUID(as_uuid=True), primary_key=True)
+    email = Column(String, nullable=False, index=True, unique=True)
+    username = Column(String, unique=True, nullable=True, index=True)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # This relationship is correct and defines the many-to-many link.
+    roles = relationship(
+        "Role",
+        secondary="auth_service_data.user_roles",  # Schema-qualify the secondary table
+        back_populates="users",
     )
 
     def __repr__(self):

@@ -1,0 +1,20 @@
+# shared/pyproject.toml
+[tool.poetry]
+name = "kgents-shared"
+version = "0.1.0"
+description = "Shared models, schemas, and utilities for the Kgents platform."
+authors = ["Kgents Team <team@kgents.com>"]
+# This is the critical part - define the package structure
+packages = [
+    { include = "shared" },  # Include the root shared module itself
+    { include = "shared/**/*.py" }  # Include all Python files in any subdirectory
+]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+pydantic = "^2.7.4"
+sqlalchemy = "^2.0.31"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

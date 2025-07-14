@@ -10,8 +10,7 @@ echo "Database is ready."
 
 # Run the database setup for the agent_management_service
 echo "Running setup for agent_management_service..."
-python scripts/manage_migrations.py create-db
-python scripts/manage_migrations.py upgrade
+python scripts/manage_db.py init
 echo "Setup for agent_management_service complete."
 
 # Execute the main command (uvicorn)

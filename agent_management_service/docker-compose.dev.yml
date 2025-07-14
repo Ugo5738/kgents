@@ -2,19 +2,21 @@
 services:
   agent_management_service_dev:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: .. # Set the context to the project root (up one level)
+      dockerfile: ./agent_management_service/Dockerfile # Path to Dockerfile from the root
     ports:
       - "8002:8000"
     volumes:
-      - ./src:/app/src
-      - ./alembic:/app/alembic
-      - ./tests:/app/tests
-      - ./scripts:/app/scripts
+      # Update volume paths to be relative to the project root
+      - ./agent_management_service/src:/app/src
+      - ./agent_management_service/alembic:/app/alembic
+      - ./agent_management_service/tests:/app/tests
+      - ./agent_management_service/scripts:/app/scripts
     env_file:
       - ./.env.dev # Load development environment variables
     environment:
       # Pass these variables to the container for the entrypoint script
+      - SERVICE_MODULE=agent_management_service
       - AGENT_MANAGEMENT_SERVICE_POSTGRES_HOST=supabase_db_kgents
       - AGENT_MANAGEMENT_SERVICE_POSTGRES_PORT=5432
     networks:

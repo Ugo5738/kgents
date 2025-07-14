@@ -6,10 +6,11 @@ from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 class AppClientRefreshToken(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "app_client_refresh_tokens"
+    __table_args__ = {"schema": "auth_service_data"}
 
     app_client_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("app_clients.id", ondelete="CASCADE"),
+        ForeignKey("auth_service_data.app_clients.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

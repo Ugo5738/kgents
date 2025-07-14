@@ -8,6 +8,7 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    # The container's PYTHONPATH needs to include the root `src` directory
     PYTHONPATH=/app/src
 
 WORKDIR /app
@@ -16,7 +17,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry
+RUN pip install --no-cache-dir poetry
 
 # Copy only pyproject.toml and poetry.lock to leverage Docker cache
 COPY pyproject.toml poetry.lock ./
@@ -24,11 +25,12 @@ COPY pyproject.toml poetry.lock ./
 # Install all dependencies, including dev dependencies
 RUN poetry install --no-root
 
-# Copy the shared library code into the container
-COPY ../shared ./shared
-
-# Copy the entire service source code
-COPY . .
+# Copy the entire service source code into the container's src directory
+COPY src ./src
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
+COPY scripts ./scripts
+COPY entrypoint.sh ./entrypoint.sh
 
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
@@ -40,4 +42,4 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 8000
 
 # Start the development server with hot-reloading
-CMD ["uvicorn", "src.agent_management_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "src.${SERVICE_MODULE}.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

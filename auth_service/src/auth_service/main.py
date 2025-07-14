@@ -1,4 +1,5 @@
 import datetime
+import logging
 import time
 from contextlib import asynccontextmanager
 
@@ -11,18 +12,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from supabase._async.client import AsyncClient as AsyncSupabaseClient
 
-from auth_service.bootstrap import bootstrap_admin_and_rbac
-from auth_service.config import settings
-from auth_service.db import get_db
-from auth_service.logging_config import LoggingMiddleware, logger, setup_logging
-from auth_service.rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
-from auth_service.supabase_client import close_supabase_clients
-from auth_service.supabase_client import (
-    get_supabase_client as get_general_supabase_client,
-)
-from auth_service.supabase_client import init_supabase_clients
-
+from .bootstrap import bootstrap_admin_and_rbac
+from .config import settings
+from .db import get_db
+from .logging_config import LoggingMiddleware, logger, setup_logging, setup_middleware
+from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
 from .routers import admin_router, health_router, token_router, user_auth_router
+from .supabase_client import close_supabase_clients
+from .supabase_client import get_supabase_client as get_general_supabase_client
+from .supabase_client import init_supabase_clients
 
 
 @asynccontextmanager
@@ -35,9 +33,6 @@ async def lifespan(app: FastAPI):
     - Resilient database connection for bootstrap process
     - Proper cleanup on application shutdown
     """
-    app.logger = logging.getLogger(settings.PROJECT_NAME)
-    setup_logging(app)
-
     app.logger.info(f"'{settings.PROJECT_NAME}' startup sequence initiated.")
     app.startup_time = time.time()
 
@@ -52,18 +47,14 @@ async def lifespan(app: FastAPI):
 
     # 2. Run bootstrap process with retry logic
     app.logger.info("Running bootstrap process...")
-    db_session_for_bootstrap = None
     try:
         async for session in get_db():
-            db_session_for_bootstrap = session
+            # Use the session for bootstrap but don't close it here
+            # bootstrap_admin_and_rbac manages its own transaction
+            await bootstrap_admin_and_rbac(session)
             break
-        if db_session_for_bootstrap:
-            await bootstrap_admin_and_rbac(db_session_for_bootstrap)
     except Exception as e:
         logger.error(f"Bootstrap process failed: {e}", exc_info=True)
-    finally:
-        if db_session_for_bootstrap:
-            await db_session_for_bootstrap.close()
 
     # Application is now ready to serve requests
     app.logger.info("Application startup complete.")
@@ -83,6 +74,9 @@ async def lifespan(app: FastAPI):
 
     app.logger.info(f"{settings.PROJECT_NAME} shutdown sequence complete.")
 
+
+# Configure logging before app initialization
+setup_logging()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -130,19 +124,14 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
+# Initialize application logger
+app.logger = logging.getLogger(settings.PROJECT_NAME)
+
+# Setup middleware - MUST be done before application starts
+setup_middleware(app)
+
 # Setup rate limiting
 setup_rate_limiting(app)
-
-# Add Middleware
-# NOTE: Order matters. LoggingMiddleware should come after RequestIdMiddleware (added in setup_logging).
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ALLOW_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.add_middleware(LoggingMiddleware)
 
 
 # --- Custom Exception Handlers ---

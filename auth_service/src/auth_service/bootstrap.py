@@ -1,19 +1,16 @@
-import logging
 import uuid
-from datetime import datetime
 from typing import Dict, Optional
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from supabase._async.client import AsyncClient as AsyncSupabaseClient
 
 from auth_service.config import settings as app_settings
 from auth_service.crud import profiles as profile_crud
+from auth_service.logging_config import logger
 from auth_service.models import Permission, Role, RolePermission, UserRole
 from auth_service.schemas.user_schemas import ProfileCreate, SupabaseUser
 from auth_service.supabase_client import get_supabase_admin_client
-
-logger = logging.getLogger(__name__)
 
 # Define roles and permissions for the Kgents platform
 CORE_ROLES = {
@@ -170,34 +167,48 @@ async def assign_permissions_to_roles(
 async def create_admin_user(
     db: AsyncSession, email: str, password: str
 ) -> Optional[SupabaseUser]:
-    """Efficiently checks for and creates an admin user in Supabase if one doesn't exist."""
-    logger.info(f"Attempting to verify or create admin user: {email}")
+    """
+    Ensures the admin user exists by first attempting to delete any pre-existing
+    user with the same email from the Supabase auth service, and then creating it fresh.
+    This makes the bootstrap process idempotent.
+    """
+    logger.info(f"Ensuring a clean state for admin user: {email}")
+    admin_supabase = get_supabase_admin_client()
+    user_to_delete_id = None
+
+    # --- STEP 1: Attempt to find and delete the user if they already exist ---
     try:
-        stmt = text("SELECT id, raw_app_meta_data FROM auth.users WHERE email = :email")
-        result = await db.execute(stmt, {"email": email})
-        existing_user = result.mappings().first()
+        # The Supabase admin API doesn't have a "get by email" function, so we list users and find the one.
+        list_response = await admin_supabase.auth.admin.list_users()
+        if list_response and hasattr(list_response, "users"):
+            for u in list_response.users:
+                if u.email == email:
+                    user_to_delete_id = u.id
+                    break
 
-        if existing_user:
+        # If user is found, delete them
+        if user_to_delete_id:
             logger.info(
-                f"Admin user with email '{email}' already exists in the database (ID: {existing_user['id']})."
+                f"Found existing admin user in Supabase auth (ID: {user_to_delete_id}). Deleting for a clean start..."
             )
-            return SupabaseUser(
-                id=existing_user["id"],
-                email=email,
-                app_metadata=existing_user.get("raw_app_meta_data", {}),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                aud="",
-                role="",
-            )
+            await admin_supabase.auth.admin.delete_user(user_to_delete_id)
+            logger.info("Successfully deleted pre-existing admin user.")
+        else:
+            logger.info("Admin user does not exist. No deletion needed.")
 
-        logger.info(f"Admin user '{email}' not found. Creating via Supabase API.")
-        admin_supabase = get_supabase_admin_client()
+    except Exception as e:
+        logger.warning(
+            f"Could not preemptively delete admin user (this is often okay): {e}"
+        )
+
+    # --- STEP 2: Now that the user is guaranteed to be gone, create them fresh ---
+    try:
+        logger.info(f"Creating fresh admin user '{email}' via Supabase API.")
         signup_response = await admin_supabase.auth.admin.create_user(
             {
                 "email": email,
                 "password": password,
-                "email_confirm": True,
+                "email_confirm": True,  # Automatically confirm the admin's email
                 "user_metadata": {"roles": ["admin"]},
             }
         )
@@ -208,14 +219,18 @@ async def create_admin_user(
             )
             return None
 
+        logger.info(
+            f"Successfully created admin user in Supabase with ID: {signup_response.user.id}"
+        )
         return SupabaseUser.model_validate(signup_response.user)
 
     except Exception as e:
         logger.error(
-            f"Unexpected error during admin user creation for '{email}': {e}",
+            f"FATAL: Could not create admin user after attempting cleanup: {e}",
             exc_info=True,
         )
-        return None
+        # Re-raise this exception because if creation fails after a delete, something is seriously wrong.
+        raise
 
 
 async def assign_admin_role_to_user(

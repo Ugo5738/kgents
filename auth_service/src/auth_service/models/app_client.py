@@ -7,6 +7,7 @@ from shared.models.base import Base, TimestampMixin, UUIDMixin
 
 class AppClient(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "app_clients"
+    __table_args__ = {"schema": "auth_service_data"}
 
     client_name = Column(String, unique=True, nullable=False, index=True)
     client_secret_hash = Column(String, nullable=False)
@@ -14,13 +15,14 @@ class AppClient(Base, UUIDMixin, TimestampMixin):
     description = Column(String, nullable=True)
     allowed_callback_urls = Column(ARRAY(String), nullable=True)
 
-    # Define many-to-many relationship with Role via AppClientRole
+    # Define the many-to-many relationship with Role.
+    # This is the ONLY relationship needed on this model.
+    # The 'back_populates="app_clients"' points to the corresponding property on the Role model.
     roles = relationship(
         "Role",
-        secondary="app_client_roles",
+        secondary="auth_service_data.app_client_roles",
         lazy="selectin",
         back_populates="app_clients",
-        overlaps="app_client_association_objects,role",  # Fix for SQLAlchemy relationship conflict warning
     )
 
     def __repr__(self):

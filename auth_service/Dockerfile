@@ -1,5 +1,7 @@
 # auth_service/Dockerfile
-# Base image for development
+# Universal Dockerfile for Kgents Python services
+# BUILT FROM WITHIN THE SERVICE DIRECTORY CONTEXT
+
 FROM python:3.12-slim
 
 # Set environment variables for Poetry and Python
@@ -8,7 +10,8 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/src
+    # The container's PYTHONPATH needs to include paths for module resolution
+    PYTHONPATH=/app/src:/app
 
 WORKDIR /app
 
@@ -16,7 +19,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y netcat-openbsd postgresql-client && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry
+RUN pip install --no-cache-dir poetry
 
 # Copy only the dependency files to leverage Docker cache
 COPY pyproject.toml poetry.lock ./
@@ -24,11 +27,12 @@ COPY pyproject.toml poetry.lock ./
 # Install all dependencies, including dev dependencies
 RUN poetry install --no-root
 
-# Copy the shared library code into the container
-COPY ../shared ./shared
-
-# Copy the entire service source code
-COPY . .
+# Copy the service's own source code
+COPY src ./src
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
+COPY scripts ./scripts
+COPY entrypoint.sh ./entrypoint.sh
 
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
@@ -38,6 +42,3 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose the port the app runs on
 EXPOSE 8000
-
-# Start the development server with hot-reloading
-CMD ["uvicorn", "src.auth_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

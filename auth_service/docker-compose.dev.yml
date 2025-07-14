@@ -4,19 +4,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    command:
+      [
+        "uvicorn",
+        "auth_service.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
     ports:
       - "8001:8000"
     volumes:
+      # Mount the service's source code for hot-reloading
       - ./src:/app/src
-      - ./alembic:/app/alembic
-      - ./tests:/app/tests
-      - ./scripts:/app/scripts
+      # Mount the shared code as an editable package
+      - ../shared:/shared
     env_file:
       - ./.env.dev # Load development environment variables
     environment:
       # Pass these variables to the container for the entrypoint script
       - AUTH_SERVICE_POSTGRES_HOST=supabase_db_kgents
       - AUTH_SERVICE_POSTGRES_PORT=5432
+      # Configure Python to find the shared package and auth_service module
+      - PYTHONPATH=/app/src:/app:/shared:$PYTHONPATH
     networks:
       - kgents_network
       - supabase_network_kgents # Connect to Supabase network from root compose

@@ -9,11 +9,11 @@ import os
 from dotenv import load_dotenv
 
 # Explicitly load the test environment variables before importing any app modules
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env.test")
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env.dev")
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path=dotenv_path, override=True)
 else:
-    print(f"Warning: .env.test file not found at {dotenv_path}")
+    print(f"Warning: .env.dev file not found at {dotenv_path}")
 
 # Now reload the config to ensure it picks up test settings
 from importlib import reload
@@ -30,11 +30,8 @@ import pytest
 from tests.fixtures.client import client
 from tests.fixtures.db import db_session, event_loop, setup_test_database
 from tests.fixtures.helpers import seed_test_user
-from tests.fixtures.mocks import (
-    MockCrud,
-    MockSupabaseResponse,
-    mock_supabase_client,
-)
+from tests.fixtures.mocks import MockCrud, MockSupabaseResponse, mock_supabase_client
+from tests.fixtures.test_data import test_data
 
 # The imports above automatically register the fixtures with pytest
 # so they will be available to all test modules without explicit imports
