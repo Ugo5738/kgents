@@ -38,11 +38,22 @@ def get_test_engine():
         import getpass
         current_user = getpass.getuser()
         
-        test_db_url = os.environ.get(
-            "AUTH_SERVICE_TEST_DATABASE_URL",
-            # Default to a local PostgreSQL connection with current user and no password
-            f"postgresql+psycopg://{current_user}@localhost:5432/postgres"
-        )
+        # Check if we're likely using Supabase CLI's PostgreSQL instance (port 54322)
+        # This helps developers run tests without specifying the URL each time
+        if os.path.exists(os.path.join(os.path.dirname(__file__), "..", "..", "..", "supabase")):
+            # Supabase CLI detected - use port 54322 with postgres/postgres credentials
+            logger.info("Detected Supabase CLI environment, using PostgreSQL on port 54322")
+            test_db_url = os.environ.get(
+                "AUTH_SERVICE_TEST_DATABASE_URL",
+                "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
+            )
+        else:
+            # Fall back to standard local PostgreSQL
+            test_db_url = os.environ.get(
+                "AUTH_SERVICE_TEST_DATABASE_URL",
+                # Default to a local PostgreSQL connection with current user and no password
+                f"postgresql+psycopg://{current_user}@localhost:5432/postgres"
+            )
         
         logger.info(f"Creating test database engine with URL: {test_db_url}")
         _test_engine = create_async_engine(
@@ -99,7 +110,8 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 async def setup_test_database():
     """
     Set up the test database once per test session.
-    This creates the necessary tables and schema, including a mock of Supabase's auth.users table.
+    This creates the necessary tables and schema for auth_service_data.
+    For the auth schema, we'll use the existing schema provided by Supabase.
     """
     logger.info(f"Setting up test database with URL: {settings.DATABASE_URL}")
     
@@ -109,50 +121,14 @@ async def setup_test_database():
     try:
         # Create database tables from SQLAlchemy models
         async with engine.begin() as conn:
-            # First drop all existing tables to ensure a clean state
-            logger.info("Dropping existing tables to ensure clean state")
-            await conn.run_sync(Base.metadata.drop_all)
+            # First drop our schema's tables to ensure a clean state
+            # But leave the Supabase auth schema intact
+            logger.info("Cleaning up auth_service_data schema for testing")
             
-            # Create the auth schema required by Supabase references 
-            logger.info("Creating auth schema for Supabase mock tables")
-            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS auth;"))
+            # Drop our schema if it exists (to clean up from previous test runs)
+            await conn.execute(text("DROP SCHEMA IF EXISTS auth_service_data CASCADE;"))
             
-            # Create a minimal version of auth.users table that satisfies our foreign key constraints
-            logger.info("Creating mock auth.users table")
-            # This simulates the Supabase auth.users table in the test environment
-            await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS auth.users (
-                    id UUID PRIMARY KEY,
-                    instance_id UUID,
-                    aud VARCHAR,
-                    role VARCHAR,
-                    encrypted_password VARCHAR,
-                    confirmation_token VARCHAR, 
-                    email_confirmed_at TIMESTAMP WITH TIME ZONE,
-                    invited_at TIMESTAMP WITH TIME ZONE,
-                    confirmation_sent_at TIMESTAMP WITH TIME ZONE,
-                    recovery_token VARCHAR,
-                    recovery_sent_at TIMESTAMP WITH TIME ZONE,
-                    email_change_token_new VARCHAR,
-                    email_change VARCHAR,
-                    email_change_sent_at TIMESTAMP WITH TIME ZONE,
-                    last_sign_in_at TIMESTAMP WITH TIME ZONE,
-                    raw_app_meta_data JSONB,
-                    raw_user_meta_data JSONB,
-                    is_super_admin BOOLEAN,
-                    created_at TIMESTAMP WITH TIME ZONE,
-                    updated_at TIMESTAMP WITH TIME ZONE,
-                    phone VARCHAR NULL UNIQUE,
-                    phone_confirmed_at TIMESTAMP WITH TIME ZONE,
-                    phone_change VARCHAR NULL DEFAULT ''::character varying,
-                    phone_change_token VARCHAR NULL DEFAULT ''::character varying,
-                    phone_change_sent_at TIMESTAMP WITH TIME ZONE,
-                    confirmed_at TIMESTAMP WITH TIME ZONE,
-                    is_anonymous BOOLEAN DEFAULT false
-                );
-            """))
-            
-            # Create the auth_service_data schema if it doesn't exist
+            # Create the auth_service_data schema
             logger.info("Creating auth_service_data schema")
             await conn.execute(text("CREATE SCHEMA IF NOT EXISTS auth_service_data;"))
             
@@ -169,6 +145,18 @@ async def setup_test_database():
             tables = result.fetchall()
             logger.info(f"Created {len(tables)} tables in auth_service_data schema")
             
+            # Verify auth schema exists (provided by Supabase)
+            result = await conn.execute(text("""
+                SELECT schema_name 
+                FROM information_schema.schemata 
+                WHERE schema_name = 'auth';
+            """))
+            auth_schema = result.fetchone()
+            if auth_schema:
+                logger.info("Verified auth schema exists (provided by Supabase)")
+            else:
+                logger.warning("Auth schema not found! Tests requiring auth.users may fail.")
+            
         logger.info("Test database setup complete")
         
         # Yield control back to the tests
@@ -181,14 +169,9 @@ async def setup_test_database():
         logger.info("Tearing down test database")
         try:
             async with engine.begin() as conn:
-                # Drop all tables
-                logger.info("Dropping all auth_service_data tables")
-                await conn.run_sync(Base.metadata.drop_all)
-                
-                # Drop the auth schema and all its tables
-                logger.info("Dropping auth schema")
-                await conn.execute(text("DROP SCHEMA IF EXISTS auth CASCADE;"))
-                
+                # Only drop our schema to leave Supabase tables intact
+                logger.info("Dropping auth_service_data schema")
+                await conn.execute(text("DROP SCHEMA IF EXISTS auth_service_data CASCADE;"))
                 logger.info("Test database teardown complete")
         except Exception as e:
             logger.error(f"Error during test database teardown: {e}")

@@ -6,7 +6,7 @@ from fastapi import status
 
 from tests.fixtures.client import client
 from tests.fixtures.db import db_session
-from tests.fixtures.mocks import mock_supabase_client
+from tests.fixtures.mocks import mock_supabase_client, AuthApiError
 from tests.fixtures.helpers import seed_test_user
 
 
@@ -110,9 +110,10 @@ async def test_login_unconfirmed_email(client: AsyncClient, mock_supabase_client
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_login_with_expired_session(client: AsyncClient, mock_supabase_client):
     """Test handling of expired session during login."""
-    from gotrue.errors import AuthApiError
+    # Using our mock AuthApiError instead of the real one
     
     # Configure mock to simulate expired session
     mock_supabase_client.auth.sign_in_with_password = AsyncMock(
@@ -134,9 +135,10 @@ async def test_login_with_expired_session(client: AsyncClient, mock_supabase_cli
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_register_user_with_existing_email(client: AsyncClient, mock_supabase_client, db_session):
     """Test registration attempt with an existing email."""
-    from gotrue.errors import AuthApiError
+    # Using our mock AuthApiError instead of the real one
     
     # Configure mock to simulate existing email error
     mock_supabase_client.auth.sign_up = AsyncMock(
@@ -161,11 +163,12 @@ async def test_register_user_with_existing_email(client: AsyncClient, mock_supab
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_login_after_lockout(client: AsyncClient, mock_supabase_client):
     """Test login attempt after account lockout."""
     # This test assumes the auth service implements account lockout after multiple failed attempts
     # We'll simulate this with a custom error from Supabase
-    from gotrue.errors import AuthApiError
+    # Using our mock AuthApiError instead of the real one
     
     # Configure mock to simulate account lockout
     mock_supabase_client.auth.sign_in_with_password = AsyncMock(
@@ -229,9 +232,11 @@ async def test_profile_update_with_existing_username(client: AsyncClient, mock_s
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
+@patch('auth_service.dependencies.user_deps.SupabaseAPIError', AuthApiError)
 async def test_logout_with_invalid_token(client: AsyncClient, mock_supabase_client):
     """Test logout attempt with invalid token."""
-    from gotrue.errors import AuthApiError
+    # Using our mock AuthApiError instead of the real one
     
     # Configure mock
     mock_supabase_client.auth.get_user = AsyncMock(

@@ -6,11 +6,13 @@ from fastapi import status
 
 from tests.fixtures.client import client
 from tests.fixtures.db import db_session
-from tests.fixtures.mocks import mock_supabase_client
+from tests.fixtures.mocks import mock_supabase_client, AuthApiError
 from tests.fixtures.helpers import seed_test_user
+from tests.fixtures.user_test_fixtures import create_test_user_response
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_request_password_reset_success(client: AsyncClient, mock_supabase_client):
     """Test successful password reset request."""
     # Configure mock
@@ -35,9 +37,9 @@ async def test_request_password_reset_success(client: AsyncClient, mock_supabase
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_request_password_reset_nonexistent_user(client: AsyncClient, mock_supabase_client):
     """Test password reset request for non-existent user (should not leak information)."""
-    from gotrue.errors import AuthApiError
     
     # Allow password reset to succeed even for non-existent email
     # This matches the behavior of the actual API which doesn't error out for non-existent emails
@@ -77,6 +79,8 @@ async def test_password_reset_rate_limiting(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
+@patch('auth_service.dependencies.user_deps.SupabaseAPIError', AuthApiError)
 async def test_update_password_success(
     client: AsyncClient, 
     mock_supabase_client, 
@@ -87,10 +91,8 @@ async def test_update_password_success(
     test_user_id = "550e8400-e29b-41d4-a716-446655440000"
     await seed_test_user(db_session, user_id=test_user_id)
     
-    # Create a UserResponse class that has a user attribute to match expected structure
-    UserResponse = type('UserResponse', (), {})
-    user_response = UserResponse()
-    user_response.user = mock_supabase_client.user
+    # Create a proper user response for validation
+    user_response = create_test_user_response(user_id=test_user_id)
     
     # Configure the mock authentication
     mock_supabase_client.auth.get_user = AsyncMock(return_value=user_response)
@@ -123,12 +125,12 @@ async def test_update_password_success(
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
+@patch('auth_service.dependencies.user_deps.SupabaseAPIError', AuthApiError)
 async def test_update_password_invalid_length(client: AsyncClient, mock_supabase_client):
     """Test password update with too short password."""
-    # Create a UserResponse class that has a user attribute to match expected structure
-    UserResponse = type('UserResponse', (), {})
-    user_response = UserResponse()
-    user_response.user = mock_supabase_client.user
+    # Create a proper user response for validation
+    user_response = create_test_user_response()
     
     # Configure the mock authentication
     mock_supabase_client.auth.get_user = AsyncMock(return_value=user_response)

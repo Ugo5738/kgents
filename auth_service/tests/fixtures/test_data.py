@@ -18,7 +18,7 @@ from auth_service.crud.profiles import create_profile, update_profile, get_profi
 from tests.helpers.test_data_factory import TestDataFactory
 
 
-class TestDataManager:
+class DataManager:
     """
     Helper class to manage test data creation and cleanup.
     This makes it easier to create complex test data scenarios while maintaining
@@ -113,13 +113,13 @@ class TestDataManager:
 
 
 @pytest.fixture
-async def test_data(db_session: AsyncSession) -> TestDataManager:
+async def test_data(db_session: AsyncSession) -> DataManager:
     """
     Fixture providing a test data manager for easy creation of test data.
     The test data manager tracks created objects and can clean them up if needed.
     All created data is automatically rolled back after the test via the db_session fixture.
     """
-    manager = TestDataManager(db_session)
+    manager = DataManager(db_session)
     try:
         yield manager
     finally:

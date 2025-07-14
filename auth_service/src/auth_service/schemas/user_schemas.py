@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_serializer
 
 
 # --- Profile Schemas ---
@@ -33,8 +33,18 @@ class ProfileResponse(ProfileBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    
+    # This ensures both user_id and id are included in the output
+    @field_serializer('user_id')
+    def serialize_user_id(self, user_id: UUID) -> str:
+        return str(user_id)
+    
+    @computed_field
+    @property
+    def id(self) -> str:
+        return str(self.user_id)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class UserProfileUpdateRequest(BaseModel):

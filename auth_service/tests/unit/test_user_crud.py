@@ -88,7 +88,7 @@ class TestUserCrud:
 
         # Act - Create profile using the real database
         result = await profile_crud.create_profile(
-            db_session=db_session, profile_in=profile_data
+            db=db_session, profile_in=profile_data
         )
 
         # Assert the profile was created correctly
@@ -123,7 +123,7 @@ class TestUserCrud:
 
         # Create a test user in auth.users table first to satisfy foreign key constraint
         test_user_id = await seed_test_user(
-            db_session=db_session, email=email, username=username
+            db=db_session, email=email, username=username
         )
 
         # Create a profile in the database that we will later retrieve
@@ -137,7 +137,7 @@ class TestUserCrud:
 
         # Create the profile
         created_profile = await profile_crud.create_profile(
-            db_session=db_session, profile_in=profile_data
+            db=db_session, profile_in=profile_data
         )
 
         # Ensure the profile was created successfully
@@ -145,7 +145,7 @@ class TestUserCrud:
 
         # Act - Retrieve the profile by user_id
         result = await profile_crud.get_profile_by_user_id(
-            db_session=db_session, user_id=test_user_id
+            db=db_session, user_id=test_user_id
         )
 
         # Assert the profile was retrieved correctly
@@ -169,7 +169,7 @@ class TestUserCrud:
 
         # Create a test user in auth.users table first to satisfy foreign key constraint
         test_user_id = await seed_test_user(
-            db_session=db_session, email=email, username=username
+            db=db_session, email=email, username=username
         )
 
         # Create a profile in the database that we will later retrieve
@@ -183,7 +183,7 @@ class TestUserCrud:
 
         # Create the profile
         created_profile = await profile_crud.create_profile(
-            db_session=db_session, profile_in=profile_data
+            db=db_session, profile_in=profile_data
         )
 
         # Ensure the profile was created successfully
@@ -191,7 +191,7 @@ class TestUserCrud:
 
         # Act - Retrieve the profile by email
         result = await profile_crud.get_profile_by_email(
-            db_session=db_session, email=email
+            db=db_session, email=email
         )
 
         # Assert the profile was retrieved correctly
@@ -208,7 +208,7 @@ class TestUserCrud:
 
         # Act - Try to retrieve a profile with the non-existent email
         result = await profile_crud.get_profile_by_email(
-            db_session=db_session, email=non_existent_email
+            db=db_session, email=non_existent_email
         )
 
         # Assert no profile was found
@@ -222,7 +222,7 @@ class TestUserCrud:
 
         # Act - Try to retrieve a profile with the non-existent ID
         result = await profile_crud.get_profile_by_user_id(
-            db_session=db_session, user_id=non_existent_id
+            db=db_session, user_id=non_existent_id
         )
 
         # Assert no profile was found
@@ -243,7 +243,7 @@ class TestUserCrud:
 
         # Create a test user in auth.users table first to satisfy foreign key constraint
         test_user_id = await seed_test_user(
-            db_session=db_session, email=email, username=username
+            db=db_session, email=email, username=username
         )
 
         # Create a profile in the database that we will later update
@@ -257,7 +257,7 @@ class TestUserCrud:
 
         # Create the profile
         created_profile = await profile_crud.create_profile(
-            db_session=db_session, profile_in=profile_data
+            db=db_session, profile_in=profile_data
         )
 
         # Ensure the profile was created successfully
@@ -272,12 +272,12 @@ class TestUserCrud:
 
         # First get the profile object by user_id
         profile = await profile_crud.get_profile_by_user_id(
-            db_session=db_session, user_id=test_user_id
+            db=db_session, user_id=test_user_id
         )
 
         # Act - Update the profile
         result = await profile_crud.update_profile(
-            db_session=db_session,
+            db=db_session,
             profile=profile,
             update_data=update_data.model_dump(exclude_unset=True),
         )
@@ -317,14 +317,14 @@ class TestUserCrud:
 
         # First try to get the profile object by user_id (should be None)
         profile = await profile_crud.get_profile_by_user_id(
-            db_session=db_session, user_id=non_existent_id
+            db=db_session, user_id=non_existent_id
         )
 
         # Act - Since profile is None, update should not be attempted
         result = None
         if profile:
             result = await profile_crud.update_profile(
-                db_session=db_session,
+                db=db_session,
                 profile=profile,
                 update_data=update_data.model_dump(exclude_unset=True),
             )
@@ -347,7 +347,7 @@ class TestUserCrud:
 
         # Create a test user in auth.users table first to satisfy foreign key constraint
         test_user_id = await seed_test_user(
-            db_session=db_session, email=email, username=username
+            db=db_session, email=email, username=username
         )
 
         # Create a profile in the database that we will later deactivate
@@ -361,7 +361,7 @@ class TestUserCrud:
 
         # Create the profile
         created_profile = await profile_crud.create_profile(
-            db_session=db_session, profile_in=profile_data
+            db=db_session, profile_in=profile_data
         )
 
         # Ensure the profile was created successfully and is active
@@ -370,7 +370,7 @@ class TestUserCrud:
 
         # Act - Deactivate the profile
         result = await profile_crud.deactivate_profile(
-            db_session=db_session, user_id=test_user_id
+            db=db_session, user_id=test_user_id
         )
 
         # Assert the profile was deactivated correctly
@@ -399,7 +399,7 @@ class TestUserCrud:
 
         # Act - Try to deactivate a non-existent profile
         result = await profile_crud.deactivate_profile(
-            db_session=db_session, user_id=non_existent_id
+            db=db_session, user_id=non_existent_id
         )
 
         # Assert no profile was deactivated

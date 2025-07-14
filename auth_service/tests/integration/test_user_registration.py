@@ -1,13 +1,16 @@
 import uuid
+from unittest.mock import patch
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.fixtures.db import get_test_engine
+from tests.fixtures.mocks import AuthApiError as MockAuthApiError
 
 # Import fixtures and test data manager
-from tests.fixtures.test_data import TestDataManager
+from tests.fixtures.test_data import DataManager
 
 from auth_service.logging_config import logger
 
@@ -18,11 +21,12 @@ from auth_service.models.profile import Profile
 pytestmark = pytest.mark.asyncio
 
 
+@patch("auth_service.routers.user_auth_routes.SupabaseAPIError", MockAuthApiError)
 async def test_register_user_success(
     client: AsyncClient,
     db_session: AsyncSession,
     mock_supabase_client,
-    test_data: TestDataManager,
+    test_data: DataManager,
 ):
     """
     Tests successful user registration.
@@ -43,6 +47,52 @@ async def test_register_user_success(
     # Get the test user ID from the enhanced mock
     test_user_id = mock_supabase_client.test_user_id
     logger.info(f"Configured mock Supabase with user ID: {test_user_id}")
+
+    # We need to set up the test user in auth.users table first to satisfy FK constraint
+    engine = get_test_engine()
+
+    try:
+        # Create independent connection to insert auth user
+        async with engine.begin() as conn:
+            # Create the auth user to satisfy FK constraint
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO auth.users 
+                        (id, email, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data) 
+                    VALUES 
+                        (:user_id, :email, now(), now(), now(), '{}'::jsonb, '{}'::jsonb)
+                    ON CONFLICT (id) DO NOTHING
+                    """
+                ),
+                {"user_id": test_user_id, "email": test_email},
+            )
+
+            # Verify the user was actually inserted
+            result = await conn.execute(
+                text(
+                    """
+                    SELECT id FROM auth.users WHERE id = :user_id
+                    """
+                ),
+                {"user_id": test_user_id},
+            )
+
+            row = result.fetchone()
+            if row:
+                logger.info(f"Verified user in auth.users table: {row[0]}")
+            else:
+                logger.error(
+                    f"Failed to find user {test_user_id} in auth.users after insertion"
+                )
+                raise RuntimeError(
+                    f"User {test_user_id} not found in auth.users after insertion"
+                )
+
+        logger.info(f"Created mock Supabase user in auth.users table: {test_user_id}")
+    except Exception as e:
+        logger.error(f"Error creating mock user in auth.users table: {e}")
+        raise  # Raise the exception to fail the test
 
     # Arrange: Define test user data using the same email for consistency
     user_data = {

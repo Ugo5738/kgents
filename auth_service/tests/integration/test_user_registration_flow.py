@@ -5,6 +5,7 @@ Tests the registration route with mocked external dependencies but real internal
 
 import uuid
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from fastapi import status
@@ -14,12 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tests.fixtures.db import get_test_engine
 
 # Import the test data manager and fixtures
-from tests.fixtures.test_data import TestDataManager
+from tests.fixtures.test_data import DataManager
 
 from auth_service.logging_config import logger
 
 # Import our models to check database state
 from auth_service.models.profile import Profile
+
+# Import our mock AuthApiError
+from tests.fixtures.mocks import AuthApiError as MockAuthApiError
 
 # Mark all tests in this file as async
 pytestmark = pytest.mark.asyncio
@@ -33,7 +37,7 @@ async def test_register_user_integration(
     client: AsyncClient,
     db_session: AsyncSession,
     mock_supabase_client,
-    test_data: TestDataManager,
+    test_data: DataManager,
 ):
     """
     Integration test for user registration flow.
@@ -115,7 +119,7 @@ async def test_register_user_integration(
                 {"user_id": test_user_id},
             )
 
-            row = await result.fetchone()
+            row = result.fetchone()
             if row:
                 logger.info(f"Verified user in auth.users table: {row[0]}")
             else:
@@ -143,7 +147,8 @@ async def test_register_user_integration(
     logger.info(f"Testing integration registration with user: {user_data['email']}")
 
     # Act - Make request to registration endpoint
-    response = await client.post("/auth/users/register", json=user_data)
+    # Use correct URL format with /api/v1 prefix
+    response = await client.post("/api/v1/auth/users/register", json=user_data)
 
     # Log response for debugging
     logger.info(f"Integration registration response status: {response.status_code}")
@@ -234,11 +239,12 @@ async def test_register_user_invalid_data(client: AsyncClient):
 # We're now using the MockSupabaseUser and MockSupabaseSession classes from fixtures/mocks.py
 
 
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', MockAuthApiError)
 async def test_register_user_supabase_error(
     client: AsyncClient,
     db_session: AsyncSession,
     mock_supabase_client,
-    test_data: TestDataManager,
+    test_data: DataManager,
 ):
     """Test registration when Supabase throws an error."""
     # Configure a unique user email and username for this test
@@ -284,11 +290,10 @@ async def test_register_user_supabase_error(
     mock_supabase_client.test_user_id = test_user_id
     mock_supabase_client.auth.test_user_id = test_user_id
 
-    # Configure the sign_up method to raise an AuthApiError for the duplicate registration test
-    from gotrue.errors import AuthApiError
-
-    mock_supabase_client.auth.sign_up.side_effect = AuthApiError(
-        "User already registered", 400, "user_already_registered"
+    # We'll use our mock AuthApiError rather than importing the real one
+    # This will be patched to replace the real AuthApiError in the router
+    mock_supabase_client.auth.sign_up.side_effect = MockAuthApiError(
+        "User already registered", 409, "user_already_registered"
     )
 
     logger.info(f"Configured mock Supabase with user ID: {test_user_id}")
@@ -323,7 +328,7 @@ async def test_register_user_supabase_error(
                 {"user_id": test_user_id},
             )
 
-            row = await result.fetchone()
+            row = result.fetchone()
             if row:
                 logger.info(f"Verified user in auth.users table: {row[0]}")
             else:

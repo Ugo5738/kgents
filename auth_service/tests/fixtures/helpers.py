@@ -8,13 +8,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def seed_test_user(db_session: AsyncSession, user_id: str = None, email: str = None, username: str = None) -> str:
+async def seed_test_user(db_session: AsyncSession = None, user_id: str = None, email: str = None, username: str = None, db: AsyncSession = None) -> str:
     """
     Create a test user record directly in the auth.users table to satisfy foreign key constraints.
     Returns the created user's ID.
     
     Args:
-        db_session: SQLAlchemy AsyncSession object
+        db_session: SQLAlchemy AsyncSession object (deprecated, use db instead)
+        db: SQLAlchemy AsyncSession object (preferred parameter name)
         user_id: Optional UUID string for the user ID (generated if not provided)
         email: Optional email address (generated if not provided)
         username: Optional username (generated if not provided)
@@ -22,6 +23,8 @@ async def seed_test_user(db_session: AsyncSession, user_id: str = None, email: s
     Returns:
         str: The UUID of the created user
     """
+    # For backward compatibility, use db_session if db is not provided
+    db = db or db_session
     if user_id is None:
         user_id = str(uuid.uuid4())
     
@@ -39,7 +42,7 @@ async def seed_test_user(db_session: AsyncSession, user_id: str = None, email: s
     try:
         # Insert the user record into the auth.users table using raw SQL
         # Using f-string interpolation for safe value insertion with explicit type casting
-        await db_session.execute(
+        await db.execute(
             text(f"""
             INSERT INTO auth.users (
                 id, 
@@ -64,12 +67,12 @@ async def seed_test_user(db_session: AsyncSession, user_id: str = None, email: s
         )
         
         # Commit the transaction
-        await db_session.commit()
+        await db.commit()
         print(f"Created test user in auth.users: {user_id} | {username}")
         
     except Exception as e:
         print(f"Error creating test user: {e}")
-        await db_session.rollback()
+        await db.rollback()
         raise
     
     return user_id

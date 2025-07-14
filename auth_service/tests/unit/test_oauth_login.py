@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from httpx import AsyncClient
 from tests.fixtures.client import client
 from tests.fixtures.db import db_session
-from tests.fixtures.mocks import mock_supabase_client
+from tests.fixtures.mocks import mock_supabase_client, AuthApiError
 
 
 @pytest.mark.asyncio
@@ -166,9 +166,10 @@ async def test_oauth_callback_error(client: AsyncClient, mock_supabase_client):
 
 
 @pytest.mark.asyncio
+@patch('auth_service.routers.user_auth_routes.SupabaseAPIError', AuthApiError)
 async def test_oauth_callback_exchange_error(client: AsyncClient, mock_supabase_client):
     """Test handling OAuth callback with code exchange error."""
-    from gotrue.errors import AuthApiError
+    # Using our mock AuthApiError instead of importing from gotrue
 
     # Configure mock to raise exception during code exchange
     mock_supabase_client.auth.exchange_code_for_session = AsyncMock(

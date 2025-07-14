@@ -12,8 +12,8 @@ from auth_service.db import get_db
 from auth_service.supabase_client import get_supabase_client
 
 
-# Ensure the root_path is set to empty string for tests
-fastapi_app.root_path = ""
+# Set the root_path to /api/v1 for tests to match production behavior and test expectations
+fastapi_app.root_path = "/api/v1"
 
 
 @pytest_asyncio.fixture

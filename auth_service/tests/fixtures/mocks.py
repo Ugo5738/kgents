@@ -15,6 +15,21 @@ import pytest_asyncio
 from tests.helpers.test_data_factory import TestDataFactory
 
 
+# Mock for gotrue.errors.AuthApiError
+class AuthApiError(Exception):
+    """Mock implementation of gotrue.errors.AuthApiError"""
+    
+    def __init__(self, message: str, status: int = 400, code: Optional[str] = None):
+        self.message = message
+        self.status = status
+        self.code = code
+        super().__init__(message)
+
+# In the real application, SupabaseAPIError is imported as an alias for AuthApiError
+# We need to make sure both names work in tests
+SupabaseAPIError = AuthApiError  # Alias for use in tests
+
+
 class MockSupabaseUser:
     """Mock user object that matches Supabase user schema."""
     
@@ -133,17 +148,27 @@ class SupabaseAuthMock(AsyncMock):
     def set_auth_error(self, method_name: str):
         """Configure a specific method to return an auth error."""
         if hasattr(self, method_name):
-            # Create a proper AuthApiError exception to raise
-            from gotrue.errors import AuthApiError
-            error_msg = "Invalid credentials or user already registered"
-            # Configure the method to raise an exception instead of returning an error response
-            # AuthApiError takes message, status, and code parameters
-            getattr(self, method_name).side_effect = AuthApiError(error_msg, 400, "invalid_credentials")
+            error_msg = "Invalid credentials"
+            status_code = 400
+            error_code = "invalid_credentials"
+            
+            # Default to a common error message
+            if method_name == "sign_in":
+                error_msg = "Invalid credentials"
+            elif method_name == "sign_up":
+                error_msg = "User already registered"
+                status_code = 409  # Use 409 Conflict for duplicate registration
+                error_code = "user_already_registered"
+            elif method_name == "get_user":
+                error_msg = "Invalid JWT"
+                
+            # Use our mock AuthApiError
+            getattr(self, method_name).side_effect = AuthApiError(error_msg, status_code, error_code)
             
     def set_not_found_error(self, method_name: str):
         """Configure a specific method to return a not found error."""
         if hasattr(self, method_name):
-            getattr(self, method_name).return_value = self.not_found_error_response
+            getattr(self, method_name).side_effect = AuthApiError("Resource not found", 404, "not_found")
             
     def configure_user(self, user_data: Dict[str, Any]):
         """Update the test user with custom data."""
