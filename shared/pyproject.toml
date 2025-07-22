@@ -1,4 +1,3 @@
-# shared/pyproject.toml
 [tool.poetry]
 name = "kgents-shared"
 version = "0.1.0"

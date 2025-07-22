@@ -3,10 +3,10 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from shared.schemas.user_schemas import UserTokenData
 
 from agent_management_service.config import settings
 from agent_management_service.logging_config import logger
+from shared.schemas.user_schemas import UserTokenData
 
 # This tells FastAPI where a client *would* go to get a token,
 # which is useful for OpenAPI documentation generation.

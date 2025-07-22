@@ -1,11 +1,9 @@
 # Auth Service
 
 ## Overview
-
 The Auth Service is a critical component of the Kgents platform responsible for managing user authentication, authorization, and identity management. This service integrates with Supabase Auth for underlying authentication while implementing custom permission models, profiles, API key management, and service-to-service authentication features.
 
 ## Technical Stack
-
 - **Framework**: FastAPI with async support
 - **Database**: PostgreSQL via SQLAlchemy 2.0 (async)
 - **Migration**: Alembic
@@ -14,203 +12,130 @@ The Auth Service is a critical component of the Kgents platform responsible for 
 - **Documentation**: Swagger UI / OpenAPI
 
 ## Features
-
 - User authentication & registration
-- Role-based access control
+- Role-based access control (RBAC)
 - API key generation and management
-- Profile management 
+- User profile management
 - Application client registration and management
-- Service-to-service authentication
+- Service-to-service (M2M) authentication
 - JWT token validation and generation
 
 ## Project Structure
-
 ```
 auth_service/
-├── alembic/               # Database migration configuration and versions
-├── scripts/               # Utility scripts for setup, testing and migration
+├── alembic/            # Database migration configuration and versions
+├── scripts/            # Utility scripts for setup, testing and migration
 ├── src/
 │   └── auth_service/
-│       ├── api/           # API endpoints and routers
-│       ├── config/        # Configuration settings
-│       ├── core/          # Core functionality
-│       ├── crud/          # Database CRUD operations
-│       ├── db.py          # Database connection setup
-│       ├── models/        # SQLAlchemy models
-│       ├── schemas/       # Pydantic schemas for validation
-│       └── utils/         # Utility functions
-├── tests/                 # Test suite
-│   ├── unit/              # Unit tests
-│   └── integration/       # Integration tests
-├── .env.example           # Example environment variables
-├── alembic.ini            # Alembic configuration
-├── pyproject.toml         # Python dependencies and project metadata
-├── Dockerfile             # Container configuration
-└── MIGRATIONS.md          # Detailed migration documentation
+│       ├── api/        # API endpoints and routers
+│       ├── config/     # Configuration settings
+│       ├── core/       # Core functionality
+│       ├── crud/       # Database CRUD operations
+│       ├── db.py       # Database connection setup
+│       ├── models/     # SQLAlchemy models
+│       ├── schemas/    # Pydantic schemas for validation
+│       └── utils/      # Utility functions
+├── tests/              # Test suite
+│   ├── unit/           # Unit tests
+│   └── integration/    # Integration tests
+├── .env.example        # Example environment variables
+├── alembic.ini         # Alembic configuration
+├── pyproject.toml      # Python dependencies and project metadata
+├── Dockerfile          # Container configuration
+└── MIGRATIONS.md       # Detailed migration documentation
 ```
 
-## Getting Started
+## Setup and Development
 
 ### Prerequisites
-
 - Python 3.12+
-- PostgreSQL 15+ (local or Supabase instance)
-- Docker and Docker Compose (optional)
+- Poetry
+- Docker and Docker Compose
+- Supabase CLI (for managing the local development environment)
 
 ### Environment Setup
 
-1. **Clone the repository**:
+1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd auth_service
    ```
 
-2. **Create a virtual environment**:
+2. Install dependencies using Poetry:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   poetry install
    ```
 
-3. **Install dependencies**:
+3. Copy environment template:
    ```bash
-   pip install -e .
+   cp .env.example .env.dev
    ```
 
-4. **Copy environment template**:
-   ```bash
-   cp .env.example .env
-   ```
-
-5. **Configure environment variables**:
-   Edit the `.env` file with your database connection details and other settings.
+4. Configure environment variables:
+   - Edit the `.env.dev` file with your local settings. The default values are configured to work with the local Supabase stack.
 
 ### Database Setup
 
-The auth_service database has a critical dependency on Supabase's auth schema. Follow these steps to set up a development database correctly:
+The auth_service database setup is fully automated. For a first-time setup or to completely reset the database, run the following command from the auth_service/ directory:
 
-1. **Create a development database**:
-   ```bash
-   createdb -h 127.0.0.1 -p 54322 -U postgres auth_dev_db
-   ```
-
-2. **Set up the auth schema** (required for Supabase integration):
-   ```bash
-   python scripts/copy_auth_schema.py --source-db postgres --target-db auth_dev_db --host 127.0.0.1 --port 54322
-   ```
-
-3. **Run migrations**:
-   ```bash
-   alembic upgrade head
-   ```
-
-4. **Verify migrations**:
-   ```bash
-   python scripts/verify_migrations.py
-   ```
-
-### Running the Service
-
-**Development Mode**:
 ```bash
-uvicorn src.auth_service.main:app --reload --host 0.0.0.0 --port 8000
+python scripts/manage_db.py recreate
 ```
 
-**Production Mode**:
+This command handles everything: it stops and restarts the local Supabase stack, creates the database, applies the latest migrations, and runs the initial data bootstrap process (creating default roles, permissions, and the admin user). For more details, see the Migration Guide.
+
+## Running the Service
+
+### Development Mode:
 ```bash
-uvicorn src.auth_service.main:app --host 0.0.0.0 --port 8000
+uvicorn src.auth_service.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-**Docker**:
+### Docker:
+The entire environment, including this service and the Supabase stack, can be managed from the project's root docker-compose.yml file.
+
 ```bash
-docker build -t kgents-auth-service .
-docker run -p 8000:8000 --env-file .env kgents-auth-service
+# From the project root directory
+docker-compose up --build auth_service
 ```
+
+## Database Migrations
+
+All database schema changes are managed through Alembic, using a wrapper script for consistency. Please use the following commands instead of calling alembic directly.
+
+### Creating a New Migration
+
+After making changes to your SQLAlchemy models in src/auth_service/models/, generate a new migration:
+
+```bash
+# Use a short, descriptive message for your change
+python scripts/manage_db.py create-migration -m "Add new_column_to_profiles_table"
+```
+
+### Applying Migrations
+
+To apply all pending migrations and bring the database schema up-to-date, run:
+
+```bash
+python scripts/manage_db.py upgrade
+```
+
+For a more detailed explanation of the migration process and available commands, please refer to the Auth Service Migration Guide.
 
 ## API Documentation
 
 When the service is running, access the API documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## Development Workflow
-
-### Creating New Endpoints
-
-1. Define Pydantic schemas in `src/auth_service/schemas/`
-2. Create CRUD operations in `src/auth_service/crud/`
-3. Implement API endpoints in `src/auth_service/api/`
-4. Add appropriate tests in `tests/`
-
-### Database Migrations
-
-The auth_service uses a special migration approach due to its integration with Supabase's auth schema:
-
-1. **Add or modify models** in `src/auth_service/models/`
-2. **Generate a migration**:
-   ```bash
-   alembic revision --autogenerate -m "describe_changes"
-   ```
-3. **Review the generated migration** in `alembic/versions/`
-   - If the migration includes auth schema tables, modify it to skip those tables
-4. **Apply the migration**:
-   ```bash
-   alembic upgrade head
-   ```
-5. **Verify your changes**:
-   ```bash
-   python scripts/verify_migrations.py
-   ```
-
-For a complete migration guide, see [MIGRATIONS.md](./MIGRATIONS.md).
-
-### Common Issues and Solutions
-
-#### Circular Import Issues
-
-- Use string-based relationship references (`"src.auth_service.models.SomeModel"`)
-- Import models through `src.auth_service.models` module (preferred), not directly
-- Ensure models are correctly registered with `Base.metadata`
-
-#### Auth Schema Issues
-
-- The `auth` schema is managed by Supabase, not Alembic
-- Always run the `copy_auth_schema.py` script before migrations on a fresh database
-- If migrations try to create `auth` tables, modify the migration to skip them
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
 ## Testing
 
-The service includes comprehensive testing capabilities:
+The service includes a comprehensive testing suite.
 
 ```bash
 # Run all tests
 pytest
 
-# Run specific test groups
-pytest tests/unit/
-pytest tests/integration/
-
-# Test coverage report
+# Run tests with coverage report
 pytest --cov=src/auth_service
 ```
-
-## Integration with Other Services
-
-The auth_service provides authentication for other services in the Kgents platform:
-
-- **Token validation**: Other services can validate JWT tokens issued by the auth_service
-- **Service-to-service authentication**: Secure communication between microservices
-- **User permissions**: Central authority for user roles and permissions
-
-## Architecture Highlights
-
-- **Async First**: Fully asynchronous request handling and database access
-- **Clean Architecture**: Separation of concerns between models, schemas, and CRUD operations
-- **Type Safety**: Comprehensive type hints throughout the codebase
-- **Security Focus**: JWT-based authentication with proper token handling
-
-## Contributing
-
-1. Follow the project's code style and architecture patterns
-2. Write tests for new features
-3. Update documentation when making changes
-4. Use descriptive commit messages

@@ -1,3 +1,4 @@
+# auth_service/pyproject.toml
 # Modern pyproject.toml using PEP 621 [project] table
 
 # -----------------
@@ -53,7 +54,7 @@ dev = [
 # -----------------
 [tool.poetry]
 packages = [
-    { include = "auth_service", from = "src" }, # <-- CHANGE THIS FOR EACH SERVICE
+    { include = "auth_service", from = "src" },
 ]
 
 [tool.poetry.dependencies]

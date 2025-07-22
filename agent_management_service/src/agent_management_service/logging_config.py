@@ -7,9 +7,10 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.agent_management_service.config import Environment, settings
+from agent_management_service.config import Environment, settings
 
 # Configure logger
 logger = logging.getLogger("agent_management_service")
@@ -58,6 +59,7 @@ class JsonFormatter(logging.Formatter):
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
+            # --- FIX: Use uppercase attribute ---
             "environment": str(settings.ENVIRONMENT.value),
         }
         if request_id := RequestContext.get_request_id():
@@ -69,36 +71,62 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_record)
 
 
-def setup_logging(app: FastAPI) -> None:
-    """Configure logging for the application"""
-    log_level = getattr(logging, settings.LOGGING_LEVEL.upper(), logging.INFO)
+def setup_logging(app: FastAPI = None):
+    """Configure logging for the application with appropriate formats.
 
+    Configures console and JSON logging based on environment.
+    The app parameter is optional and only used for logging information.
+    """
+    log_level = getattr(logging, settings.LOGGING_LEVEL)
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers():
-        root_logger.handlers.clear()
 
+    # Clear any existing handlers
+    for handler in root_logger.handlers[::]:
+        root_logger.removeHandler(handler)
+
+    # Determine formatter based on environment
     if settings.ENVIRONMENT == Environment.PRODUCTION:
         formatter = JsonFormatter()
     else:
         formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
         )
 
+    # Configure console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
     root_logger.setLevel(log_level)
 
     # Configure specific loggers if needed
-    logging.getLogger("agent_management_service").setLevel(log_level)
+    logging.getLogger("auth_service").setLevel(log_level)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-
-    app.add_middleware(RequestIdMiddleware)
 
     logger.info(
         f"Logging configured with level {settings.LOGGING_LEVEL} "
         f"and {'JSON' if settings.ENVIRONMENT == Environment.PRODUCTION else 'plain text'} format"
     )
+
+
+def setup_middleware(app: FastAPI):
+    """Register all middleware for the application.
+
+    IMPORTANT: Must be called during application initialization, not during lifespan.
+    """
+    # Add request ID middleware
+    app.add_middleware(RequestIdMiddleware)
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ALLOW_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Add logging middleware
+    app.add_middleware(LoggingMiddleware)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):

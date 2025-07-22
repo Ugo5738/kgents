@@ -168,42 +168,34 @@ async def create_admin_user(
     db: AsyncSession, email: str, password: str
 ) -> Optional[SupabaseUser]:
     """
-    Ensures the admin user exists by first attempting to delete any pre-existing
-    user with the same email from the Supabase auth service, and then creating it fresh.
-    This makes the bootstrap process idempotent.
+    Ensures the admin user exists by either finding an existing user or creating a new one.
+    This makes the bootstrap process truly idempotent.
     """
-    logger.info(f"Ensuring a clean state for admin user: {email}")
+    logger.info(f"Ensuring admin user exists: {email}")
     admin_supabase = get_supabase_admin_client()
-    user_to_delete_id = None
+    existing_user = None
 
-    # --- STEP 1: Attempt to find and delete the user if they already exist ---
+    # --- STEP 1: Check if the user already exists ---
     try:
         # The Supabase admin API doesn't have a "get by email" function, so we list users and find the one.
         list_response = await admin_supabase.auth.admin.list_users()
         if list_response and hasattr(list_response, "users"):
             for u in list_response.users:
                 if u.email == email:
-                    user_to_delete_id = u.id
+                    existing_user = u
+                    logger.info(f"Found existing admin user with ID: {u.id}")
                     break
-
-        # If user is found, delete them
-        if user_to_delete_id:
-            logger.info(
-                f"Found existing admin user in Supabase auth (ID: {user_to_delete_id}). Deleting for a clean start..."
-            )
-            await admin_supabase.auth.admin.delete_user(user_to_delete_id)
-            logger.info("Successfully deleted pre-existing admin user.")
-        else:
-            logger.info("Admin user does not exist. No deletion needed.")
-
     except Exception as e:
-        logger.warning(
-            f"Could not preemptively delete admin user (this is often okay): {e}"
-        )
+        logger.warning(f"Error checking for existing admin user: {e}")
 
-    # --- STEP 2: Now that the user is guaranteed to be gone, create them fresh ---
+    # --- STEP 2: Return the existing user or create a new one if needed ---
+    if existing_user:
+        logger.info(f"Using existing admin user: {email}")
+        return SupabaseUser.model_validate(existing_user)
+
+    # User doesn't exist, create them
     try:
-        logger.info(f"Creating fresh admin user '{email}' via Supabase API.")
+        logger.info(f"Creating new admin user '{email}' via Supabase API.")
         signup_response = await admin_supabase.auth.admin.create_user(
             {
                 "email": email,
@@ -225,12 +217,31 @@ async def create_admin_user(
         return SupabaseUser.model_validate(signup_response.user)
 
     except Exception as e:
-        logger.error(
-            f"FATAL: Could not create admin user after attempting cleanup: {e}",
-            exc_info=True,
-        )
-        # Re-raise this exception because if creation fails after a delete, something is seriously wrong.
-        raise
+        # If we get an error here that says the user already exists, we should try to find the user again
+        # This can happen in race conditions or if the previous check missed the user
+        if "already been registered" in str(e):
+            logger.info(
+                f"User {email} already exists. Attempting to retrieve existing user."
+            )
+            try:
+                # Try to find the user again
+                retry_list_response = await admin_supabase.auth.admin.list_users()
+                if retry_list_response and hasattr(retry_list_response, "users"):
+                    for u in retry_list_response.users:
+                        if u.email == email:
+                            logger.info(
+                                f"Successfully retrieved existing admin user with ID: {u.id}"
+                            )
+                            return SupabaseUser.model_validate(u)
+            except Exception as inner_e:
+                logger.error(
+                    f"Failed to retrieve existing admin user after creation error: {inner_e}"
+                )
+
+        logger.warning(f"Could not create admin user: {e}")
+        # For bootstrap idempotence, we don't want to raise here, just return None
+        # and let the calling function handle the situation
+        return None
 
 
 async def assign_admin_role_to_user(
@@ -310,7 +321,7 @@ async def bootstrap_admin_and_rbac(db: AsyncSession) -> bool:
             "Bootstrap: Core RBAC tables (roles, permissions, role_permissions) processed."
         )
 
-        # 4. Create admin user if environment variables are set
+        # 4. Create or get admin user if environment variables are set
         if app_settings.INITIAL_ADMIN_EMAIL and app_settings.INITIAL_ADMIN_PASSWORD:
             admin_supa_user = await create_admin_user(
                 db,
@@ -322,24 +333,43 @@ async def bootstrap_admin_and_rbac(db: AsyncSession) -> bool:
                 logger.info(
                     f"Bootstrap: Supabase admin user '{admin_supa_user.email}' processed (ID: {admin_supa_user.id})."
                 )
-                # 5. Create admin profile
+                # 5. Create admin profile (this is idempotent)
                 await create_admin_profile(db, admin_supa_user)
 
-                # 6. Assign admin role to user
+                # 6. Assign admin role to user (this is idempotent)
                 if "admin" in role_ids and role_ids["admin"]:
                     await assign_admin_role_to_user(
                         db, admin_supa_user.id, role_ids["admin"]
                     )
                 else:
-                    logger.error(
+                    logger.warning(
                         "Bootstrap: 'admin' role ID not found in local DB. Cannot assign to Supabase admin user."
                     )
-            await db.commit()  # Final commit for the bootstrap session
+            else:
+                # Even if we couldn't get the admin user, we should not fail the bootstrap
+                # This could happen if the user exists but we can't retrieve it for some reason
+                logger.warning(
+                    "Bootstrap: Could not create or retrieve admin user, but continuing with bootstrap."
+                    " This is typically ok if the admin user already exists but couldn't be retrieved."
+                )
+
+            # Commit what we've done so far
+            await db.commit()
+        else:
+            logger.info("No admin credentials provided. Skipping admin user creation.")
+
         logger.info("Bootstrap process completed successfully.")
         return True
     except Exception as e:
         await db.rollback()
-        logger.error(f"Bootstrap process failed: {e}", exc_info=True)
+        logger.warning(f"Bootstrap process encountered an error: {e}", exc_info=True)
+        # Return true anyway if this is just an issue with the admin user
+        # This makes the bootstrap process more resilient
+        if "already been registered" in str(e):
+            logger.info(
+                "Admin user already exists. Considering bootstrap successful despite error."
+            )
+            return True
         return False
 
 

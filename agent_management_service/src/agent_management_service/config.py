@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
+        env_file=".env.dev",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
     )
 
     # --- GENERAL APP SETTINGS ---
@@ -36,6 +39,9 @@ class Settings(BaseSettings):
 
     # --- DATABASE SETTINGS ---
     DATABASE_URL: str = Field(..., alias="AGENT_MANAGEMENT_SERVICE_DATABASE_URL")
+    REDIS_URL: str = Field(
+        "redis://localhost:6379/0", alias="AGENT_MANAGEMENT_SERVICE_REDIS_URL"
+    )
 
     # --- CORS SETTINGS ---
     CORS_ALLOW_ORIGINS: List[str] = Field(
@@ -45,13 +51,17 @@ class Settings(BaseSettings):
     # --- SERVICE-SPECIFIC SETTINGS ---
     # Jwt validation settings
     # These MUST match the values used by the auth_service to sign the tokens.
-    M2M_JWT_SECRET_KEY: str = Field(..., alias="AUTH_SERVICE_M2M_JWT_SECRET_KEY")
-    M2M_JWT_ALGORITHM: str = Field("HS256", alias="AUTH_SERVICE_M2M_JWT_ALGORITHM")
+    M2M_JWT_SECRET_KEY: str = Field(
+        ..., alias="AGENT_MANAGEMENT_SERVICE_M2M_JWT_SECRET_KEY"
+    )
+    M2M_JWT_ALGORITHM: str = Field(
+        "HS256", alias="AGENT_MANAGEMENT_SERVICE_M2M_JWT_ALGORITHM"
+    )
     M2M_JWT_ISSUER: str = Field(
-        "kgents_auth_service", alias="AUTH_SERVICE_M2M_JWT_ISSUER"
+        "kgents_auth_service", alias="AGENT_MANAGEMENT_SERVICE_M2M_JWT_ISSUER"
     )
     M2M_JWT_AUDIENCE: str = Field(
-        "kgents_microservices", alias="AUTH_SERVICE_M2M_JWT_AUDIENCE"
+        "kgents_microservices", alias="AGENT_MANAGEMENT_SERVICE_M2M_JWT_AUDIENCE"
     )
 
     # Langflow Integration
@@ -59,20 +69,19 @@ class Settings(BaseSettings):
         "http://langflow_ide:7860", alias="AGENT_MANAGEMENT_SERVICE_LANGFLOW_API_URL"
     )
 
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == Environment.PRODUCTION
+
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == Environment.DEVELOPMENT
+
+    def is_testing(self) -> bool:
+        return self.ENVIRONMENT == Environment.TESTING
+
     @field_validator("DATABASE_URL", mode="after")
-    def assemble_db_connection(cls, v: Optional[PostgresDsn], info: Any) -> PostgresDsn:
-        if isinstance(v, str):
-            return PostgresDsn(
-                str(v).replace("postgresql+asyncpg://", "postgresql+psycopg://")
-            )
-        return PostgresDsn.build(
-            scheme="postgresql+psycopg",
-            username=info.data.get("POSTGRES_USER"),
-            password=info.data.get("POSTGRES_PASSWORD"),
-            host=info.data.get("POSTGRES_HOST"),
-            port=int(info.data.get("POSTGRES_PORT", 5432)),
-            path=f"{info.data.get('POSTGRES_DB') or ''}",
-        )
+    def validate_db_url(cls, v: PostgresDsn) -> str:
+        """Ensures the database URL uses the psycopg driver."""
+        return str(v).replace("postgresql://", "postgresql+psycopg://")
 
 
 # Global instance of the settings

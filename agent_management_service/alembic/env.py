@@ -1,25 +1,35 @@
-import asyncio
+# auth_service/alembic/env.py
 
-# Make the service's src directory available for imports
+import asyncio
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
+from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from alembic import context
+# --- Path Setup for Alembic ---
+# This ensures that Alembic can find all the necessary modules from both
+# the service's `src` directory and the project's shared `shared` directory.
+service_dir = Path(__file__).parent.parent.absolute()
+project_root = service_dir.parent
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the service's own source code to the path
+sys.path.insert(0, str(service_dir / "src"))
+# Add the shared library to the path
+sys.path.insert(0, str(project_root))
 
+# Now we can safely import our project's modules
 from agent_management_service.config import settings
 from agent_management_service.db import Base
 
 # Import all models to ensure they're registered with Base.metadata
-# We're importing the __init__.py which should import all models
 from agent_management_service.models import *
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# --- Alembic Configuration ---
 config = context.config
 
 # Interpret the config file for Python logging.
@@ -27,9 +37,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Set the database URL for Alembic from our settings
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
-# Set target_metadata to our SQLAlchemy Base.metadata for autogenerate support
+# Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
 
 

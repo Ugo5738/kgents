@@ -15,9 +15,6 @@ import time
 from pathlib import Path
 from typing import Dict
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 # --- Path Setup ---
 service_dir = Path(__file__).parent.parent.absolute()
 project_root = service_dir.parent
@@ -25,26 +22,13 @@ sys.path.insert(0, str(service_dir / "src"))
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from auth_service.bootstrap import run_bootstrap
+from auth_service.config import settings
 from auth_service.db import close_engine, get_engine, reset_session_factory
 from auth_service.supabase_client import close_supabase_clients, init_supabase_clients
-
-
-# --- Standalone Configuration ---
-class StandaloneConfig:
-    DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, ADMIN_DB_NAME, PROJECT_NAME = (
-        "localhost",
-        54322,
-        "postgres",
-        "postgres",
-        "auth_dev_db",
-        "postgres",
-        "Authentication Service",
-    )
-
-
-config = StandaloneConfig()
 
 # --- Logging and Helpers ---
 logging.basicConfig(
@@ -87,42 +71,46 @@ def run_command(command: str, check: bool = True):
         raise
 
 
-def get_db_params(args: argparse.Namespace) -> Dict[str, any]:
+def get_db_params_from_url(db_url: str) -> dict:
+    """Parses a database URL into a dictionary of its components."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(str(db_url))
     return {
-        "host": args.host or config.DB_HOST,
-        "port": args.port or config.DB_PORT,
-        "user": args.user or config.DB_USER,
-        "password": args.password or config.DB_PASSWORD,
-        "dbname": args.dbname or config.DB_NAME,
+        "user": parsed.username or "postgres",
+        "password": parsed.password or "postgres",
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
+        "dbname": parsed.path.lstrip("/"),
     }
 
 
-def set_db_url_env(db_params: Dict[str, any]):
-    os.environ["AUTH_SERVICE_DATABASE_URL"] = (
-        f"postgresql+psycopg://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
-    )
-
-
-def check_command(cmd: str):
-    if not shutil.which(cmd):
-        logger.error(
-            colored(
-                f"Command not found: '{cmd}'. Please ensure it is installed and in your PATH.",
-                "red",
-            )
-        )
-        raise FileNotFoundError(f"Required command '{cmd}' not found.")
+# def set_db_url_env(db_params: Dict[str, any]):
+#     os.environ["AUTH_SERVICE_DATABASE_URL"] = (
+#         f"postgresql+psycopg://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
+#     )
 
 
 def create_db(db_params: Dict):
-    logger.info(f"Attempting to create database '{db_params['dbname']}'...")
-    run_command(
-        f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {config.ADMIN_DB_NAME} -c 'CREATE DATABASE {db_params['dbname']}'",
-        check=False,
-    )
+    """Creates the service-specific database if it doesn't exist."""
+    db_name = db_params["dbname"]
+    admin_db_name = "postgres"  # Default DB to connect to for CREATE DATABASE
     logger.info(
-        colored(f"Database '{db_params['dbname']}' created or already exists.", "green")
+        f"Ensuring database '{db_name}' exists on host '{db_params['host']}'..."
     )
+
+    conn_str_admin = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{admin_db_name}"
+
+    try:
+        # The `check=False` allows the command to "fail" gracefully if the DB already exists.
+        run_command(
+            f'psql "{conn_str_admin}" -c "CREATE DATABASE {db_name}"', check=False
+        )
+        logger.info(
+            colored(f"Database '{db_name}' created or already exists.", "green")
+        )
+    except Exception as e:
+        logger.warning(f"Could not create database (it may already exist). Error: {e}")
 
 
 def reset_migrations():
@@ -142,6 +130,7 @@ def reset_migrations():
 
 
 async def bootstrap_service():
+    """Runs the application's bootstrap logic to seed initial data."""
     logger.info("Running service data bootstrap...")
     # Bootstrap needs its own Supabase client initialized with the correct DB URL
     # which is set by set_db_url_env before main logic runs.
@@ -233,13 +222,6 @@ async def recreate_environment(db_params: Dict):
         f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {db_params['dbname']} -c '\\dt auth_service_data.*'"
     )
 
-    # Make sure connection pools are fully reset before bootstrap
-    logger.info("--- Resetting connection pools before bootstrap ---")
-    await reset_db_connections()
-
-    # Now run bootstrap with fresh connections
-    await bootstrap_service()
-
 
 async def reset_db_connections():
     """
@@ -265,17 +247,74 @@ async def reset_db_connections():
 
 
 # --- Main Command Orchestrator ---
+async def check_initialization_status(db_params: Dict) -> bool:
+    """Check if the database and core tables have already been initialized.
+    Returns True if initialization is complete, False otherwise."""
+    # Check if database exists
+    try:
+        conn_str = f"host={db_params['host']} port={db_params['port']} user={db_params['user']} password={db_params['password']} dbname={db_params['dbname']}"
+        subprocess.run(
+            f"psql -c 'SELECT 1' {conn_str}",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"Database '{db_params['dbname']}' exists.")
+
+        # Check if core tables exist
+        role_check = subprocess.run(
+            f"psql {conn_str} -c 'SELECT COUNT(*) FROM auth_service_data.roles'",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if role_check.returncode == 0 and "count" in role_check.stdout.lower():
+            logger.info("Core tables exist and are accessible.")
+            return True
+    except Exception as e:
+        logger.warning(f"Initialization check failed: {e}")
+        return False
+
+    return False
+
+
+async def init_service(db_params: Dict):
+    """Initialize the service if needed, or do nothing if already initialized."""
+    logger.info("Checking if auth service is already initialized...")
+
+    is_initialized = await check_initialization_status(db_params)
+
+    if is_initialized:
+        logger.info(
+            colored(
+                "Auth service is already initialized. Skipping initialization.", "green"
+            )
+        )
+        return
+
+    logger.info("Auth service needs initialization. Running setup...")
+
+    # Create database if it doesn't exist
+    create_db(db_params)
+
+    # Run migrations
+    run_command("alembic upgrade head")
+
+    logger.info(colored("Auth service initialization completed successfully.", "green"))
+
+
 async def main():
     parser = argparse.ArgumentParser(
-        description=f"{config.PROJECT_NAME} Database Management Tool"
+        description=f"{settings.PROJECT_NAME} Database Management Tool"
     )
-    parser.add_argument("--host", help="DB host")
-    parser.add_argument("--port", type=int, help="DB port")
-    parser.add_argument("--user", help="DB user")
-    parser.add_argument("--password", help="DB password")
-    parser.add_argument("--dbname", help="DB name")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser(
+        "init",
+        help="Initialize the database if not already initialized.",
+    )
     subparsers.add_parser(
         "recreate",
         help="Stop, reset, and re-initialize the entire Supabase stack and database.",
@@ -292,13 +331,15 @@ async def main():
     )
 
     args = parser.parse_args()
-    db_params = get_db_params(args)
+    db_params = get_db_params_from_url(str(settings.DATABASE_URL))
     os.environ["PGPASSWORD"] = db_params["password"]
     load_dotenv(dotenv_path=service_dir / ".env.dev", override=True)
-    set_db_url_env(db_params)
+    # set_db_url_env(db_params)
 
     try:
-        if args.command == "recreate":
+        if args.command == "init":
+            await init_service(db_params)
+        elif args.command == "recreate":
             await recreate_environment(db_params)
         elif args.command == "create-migration":
             run_command(f'alembic revision --autogenerate -m "{args.message}"')

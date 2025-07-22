@@ -1,16 +1,16 @@
+import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi.errors import RateLimitExceeded
 
-from agent_management_service.config import settings
-from agent_management_service.db import get_db
-
+from .config import settings
+from .db import get_db
+from .logging_config import setup_logging, setup_middleware
+from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
 from .routers import agent_router, health_router, langflow_router, version_router
 
 
@@ -19,27 +19,26 @@ async def lifespan(app: FastAPI):
     """Application lifecycle manager with robust initialization.
 
     Handles startup and shutdown sequences with proper error handling and retry logic.
+    Features:
+    - Graceful initialization of Supabase clients
+    - Resilient database connection for bootstrap process
+    - Proper cleanup on application shutdown
     """
-    app.logger.info("Agent Management Service startup sequence initiated.")
-
-    # Initialize any resources needed for the service
-    # For example, connect to message brokers or initialize external clients
-
-    # Application is now ready to serve requests
-    app.logger.info("Agent Management Service startup complete.")
+    app.logger.info(f"'{settings.PROJECT_NAME}' startup sequence initiated.")
+    app.startup_time = time.time()
 
     # Yield control back to the application
     yield
 
     # --- Application Shutdown ---
-    app.logger.info("Agent Management Service shutdown sequence initiated.")
+    app.logger.info(f"'{settings.PROJECT_NAME}' shutdown sequence initiated.")
 
-    # Close any connections or resources
-    app.logger.info("Agent Management Service shutdown complete.")
 
+# Configure logging before app initialization
+setup_logging()
 
 app = FastAPI(
-    title="Agent Management Service API",
+    title=settings.PROJECT_NAME,
     description="Service for managing agents including creation, version history, and configurations",
     version="1.0.0",
     root_path=settings.ROOT_PATH,
@@ -64,26 +63,14 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
-# Track app startup time for uptime monitoring in health checks
-app.startup_time = time.time()
+# Initialize application logger
+app.logger = logging.getLogger(settings.PROJECT_NAME)
 
-# Add logging attribute to app
-app.logger = settings.logger
+# Setup middleware - MUST be done before application starts
+setup_middleware(app)
 
-# Setup middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --- Include API routers - all protected by default ---
-app.include_router(health_router)
-app.include_router(agent_router)
-app.include_router(version_router)
-app.include_router(langflow_router)
+# Setup rate limiting
+setup_rate_limiting(app)
 
 
 # Exception handlers
@@ -103,50 +90,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.get("/health")
-async def health(request: Request, db: AsyncSession = Depends(get_db)):
-    """Health check endpoint optimized for Kubernetes probes.
+# Use the handler from rate_limiting module
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-    This endpoint checks the service's health by:
-    1. Verifying API functionality
-    2. Testing database connectivity
-    """
-    current_time = time.time()
-    response = {
-        "status": "ok",
-        "version": app.version,
-        "environment": str(settings.ENVIRONMENT),
-        "uptime": current_time - app.startup_time,
-        "components": {"api": {"status": "ok"}},
-    }
+# --- Include API routers - all protected by default ---
+app.include_router(health_router)
+app.include_router(agent_router)
+app.include_router(version_router)
+app.include_router(langflow_router)
 
-    # Check database connection
-    try:
-        result = await db.execute(text("SELECT 1 as value"))
-        row = result.fetchone()
-        if row and row.value == 1:
-            response["components"]["database"] = {"status": "ok"}
-        else:
-            response["components"]["database"] = {
-                "status": "error",
-                "message": "Invalid response",
-            }
-            response["status"] = "degraded"
-    except Exception as e:
-        app.logger.error(f"Health check - Database error: {str(e)}")
-        response["components"]["database"] = {
-            "status": "error",
-            "message": f"Database error: {str(e)}",
-            "error_type": e.__class__.__name__,
-        }
-        response["status"] = "degraded"
-
-    # Return success status even if components are degraded
-    # This allows Kubernetes to keep pod running while issues are fixed
-    return JSONResponse(content=response, status_code=200)
-
-
-@app.get("/")
-async def root():
-    """Root endpoint returning a welcome message."""
-    return {"message": "Welcome to the Agent Management Service API"}
+# Add a logger attribute to the app for easy access in routes if needed
+app.logger = logging.getLogger("auth_service")

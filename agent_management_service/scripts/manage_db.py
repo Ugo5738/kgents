@@ -1,36 +1,24 @@
 # agent_management_service/scripts/manage_db.py
+
 import argparse
 import asyncio
 import logging
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
-from typing import Dict, Set, Tuple
+from typing import Dict
 
-from sqlalchemy import text
-
-# --- Script Setup ---
-# Ensure the service's src directory is in the Python path
-# This allows the script to be run from the service's root directory
+# --- Path Setup ---
 service_dir = Path(__file__).parent.parent.absolute()
+project_root = service_dir.parent
 sys.path.insert(0, str(service_dir / "src"))
+sys.path.insert(0, str(project_root))
 
-# --- SERVICE-SPECIFIC CONFIGURATION ---
-# The only section you need to change when adapting to a new service.
-# 1. Change these imports for each service
 from agent_management_service.config import settings
-from agent_management_service.db import Base, get_db
 
-SERVICE_NAME = settings.PROJECT_NAME
-
-# 2. Set these flags to control service-specific logic
-IS_AUTH_SERVICE = False  # Enables special logic like copying the auth schema
-HAS_BOOTSTRAP = False  # Set to True if the service has a bootstrap process
-# -----------------------------------------
-
-
-# --- Generic Helper Functions (Service Agnostic) ---
+# --- Logging and Helpers ---
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -49,45 +37,54 @@ def colored(text: str, color: str) -> str:
 
 
 def run_command(command: str, check: bool = True):
-    """Executes a shell command and streams its output."""
     logger.info(colored(f"--- Running: {command} ---", "yellow"))
-    process = subprocess.Popen(
-        command,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        cwd=service_dir,
-    )
-    for line in process.stdout:
-        print(line, end="")
-    process.wait()
-    if check and process.returncode != 0:
-        raise RuntimeError(f"Command failed with exit code {process.returncode}")
+    try:
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=service_dir,
+            bufsize=1,
+        )
+        for line in iter(process.stdout.readline, ""):
+            print(line, end="")
+        process.wait()
+        if check and process.returncode != 0:
+            raise RuntimeError(f"Command failed with exit code {process.returncode}")
+    except Exception as e:
+        logger.error(
+            colored(f"An error occurred while running the command: {e}", "red")
+        )
+        raise
 
 
-def get_db_params(db_url: str) -> dict:
-    """Extracts connection parameters from a database URL."""
+def get_db_params_from_url(db_url: str) -> dict:
     from urllib.parse import urlparse
 
     parsed = urlparse(str(db_url))
     return {
-        "user": parsed.username,
-        "password": parsed.password,
-        "host": parsed.hostname,
-        "port": parsed.port,
+        "user": parsed.username or "postgres",
+        "password": parsed.password or "postgres",
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
         "dbname": parsed.path.lstrip("/"),
     }
 
 
-# --- Core Database Operations (Service Agnostic Logic) ---
-async def create_db(db_params: dict):
+def create_db(db_params: Dict):
     """Creates the service-specific database if it doesn't exist."""
     db_name = db_params["dbname"]
-    logger.info(f"Ensuring database '{db_name}' exists...")
-    # Connect to the default 'postgres' db to run the create command
-    conn_str_admin = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/postgres"
+    admin_db_name = "postgres"  # Default DB to connect to for CREATE DATABASE
+    logger.info(
+        f"Ensuring database '{db_name}' exists on host '{db_params['host']}'..."
+    )
+
+    conn_str_admin = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{admin_db_name}"
+
     try:
+        # The `check=False` allows the command to "fail" gracefully if the DB already exists.
         run_command(
             f'psql "{conn_str_admin}" -c "CREATE DATABASE {db_name}"', check=False
         )
@@ -112,19 +109,73 @@ async def delete_db(db_params: dict):
     logger.info(colored(f"Database '{db_name}' deleted.", "green"))
 
 
-# --- Service-Specific Operations ---
-# -----------------------------------------
+def reset_migrations():
+    versions_dir = service_dir / "alembic" / "versions"
+    logger.info(
+        colored(f"--- Resetting migration history in {versions_dir} ---", "yellow")
+    )
+    if versions_dir.exists():
+        for item in versions_dir.glob("*.py"):
+            if item.name != "__init__.py":
+                logger.info(f"Deleting migration file: {item.name}")
+                item.unlink()
+    else:
+        versions_dir.mkdir(parents=True)
+    (versions_dir / "__init__.py").touch(exist_ok=True)
+    logger.info(colored("Migration history has been reset.", "green"))
+
+
+# Placeholder for future bootstrap logic
+async def bootstrap_service():
+    logger.info("Running service data bootstrap for agent_management_service...")
+    # Add any data seeding logic here if needed in the future
+    logger.info(colored("Bootstrap complete (no-op for now).", "green"))
+
+
+async def recreate_environment(db_params: Dict):
+    """
+    Stops, resets, and restarts the entire Supabase stack, then migrates and bootstraps the database.
+    This is the definitive way to get a clean slate.
+    """
+    logger.info("--- Recreating environment for Agent Management Service ---")
+    # logger.info("--- Stopping Supabase stack for a full reset ---")
+    # run_command("supabase stop --no-backup")
+    # logger.info(colored("Supabase stack stopped.", "green"))
+
+    # time.sleep(2)
+
+    # logger.info("--- Starting a fresh Supabase stack ---")
+    # run_command("supabase start")
+    # logger.info(colored("Fresh Supabase stack is running.", "green"))
+
+    # time.sleep(5)
+
+    await delete_db(db_params)
+
+    # Create our application-specific database
+    logger.info("--- Creating application database ---")
+    create_db(db_params)
+
+    reset_migrations()
+    run_command("alembic revision --autogenerate -m 'Initial schema'")
+    run_command("alembic upgrade head")
+
+    # Verify the tables were created before bootstrapping
+    logger.info("--- Verifying database schema before bootstrap ---")
+    run_command(
+        f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {db_params['dbname']} -c '\\dt auth_service_data.*'"
+    )
 
 
 # --- Main Command Orchestrator ---
 async def main():
     parser = argparse.ArgumentParser(
-        description=f"{SERVICE_NAME} Database Management Tool"
+        description=f"{settings.PROJECT_NAME} Database Management Tool"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser(
-        "init", help="Fully initializes the database (create, migrate)."
+        "init", help="Fully initializes the database (create, migrate, bootstrap)."
     )
     subparsers.add_parser(
         "recreate", help="Deletes and then fully initializes the database."
@@ -156,17 +207,15 @@ async def main():
     args = parser.parse_args()
 
     # Set PGPASSWORD for psql and pg_dump commands
-    db_params = get_db_params(str(settings.DATABASE_URL))
+    db_params = get_db_params_from_url(str(settings.DATABASE_URL))
     os.environ["PGPASSWORD"] = db_params["password"]
 
     try:
         if args.command == "init":
-            await create_db(db_params)
+            create_db(db_params)
             run_command("alembic upgrade head")
         elif args.command == "recreate":
-            await delete_db(db_params)
-            await create_db(db_params)
-            run_command("alembic upgrade head")
+            await recreate_environment(db_params)
         elif args.command == "delete-db":
             await delete_db(db_params)
         elif args.command == "create-migration":

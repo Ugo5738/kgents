@@ -1,26 +1,19 @@
-import datetime
 import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-from supabase._async.client import AsyncClient as AsyncSupabaseClient
 
 from .bootstrap import bootstrap_admin_and_rbac
 from .config import settings
 from .db import get_db
-from .logging_config import LoggingMiddleware, logger, setup_logging, setup_middleware
+from .logging_config import logger, setup_logging, setup_middleware
 from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
 from .routers import admin_router, health_router, token_router, user_auth_router
-from .supabase_client import close_supabase_clients
-from .supabase_client import get_supabase_client as get_general_supabase_client
-from .supabase_client import init_supabase_clients
+from .supabase_client import close_supabase_clients, init_supabase_clients
 
 
 @asynccontextmanager

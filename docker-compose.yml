@@ -4,17 +4,15 @@ services:
       file: auth_service/docker-compose.dev.yml
       service: auth_service_dev
 
-  # agent_management_service:
-  #   extends:
-  #     file: agent_management_service/docker-compose.dev.yml
-  #     service: agent_management_service_dev
+  agent_management_service:
+    extends:
+      file: agent_management_service/docker-compose.dev.yml
+      service: agent_management_service_dev
 
   # tool_registry_service:
   #   extends:
   #     file: tool_registry_service/docker-compose.dev.yml
   #     service: tool_registry_service_dev
-  #   ports:
-  #     - "8003:8000"
 
   # nl_agents_service:
   #   extends:

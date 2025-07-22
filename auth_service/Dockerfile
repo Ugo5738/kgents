@@ -42,3 +42,5 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose the port the app runs on
 EXPOSE 8000
+
+CMD uvicorn ${SERVICE_MODULE}.main:app --host 0.0.0.0 --port 8000 --reload

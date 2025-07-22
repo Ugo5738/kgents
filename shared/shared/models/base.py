@@ -1,4 +1,4 @@
-# shared/models/base.py
+# shared/shared/models/base.py
 import uuid
 from datetime import datetime
 
