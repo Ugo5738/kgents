@@ -5,33 +5,27 @@ This module defines FastAPI routes for managing tool categories.
 Only admins can create, update, and delete categories.
 """
 
-import logging
 from typing import Any, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tool_registry_service.crud import tool_categories as crud
-from tool_registry_service.db import get_db
-from tool_registry_service.dependencies.auth import (
-    check_admin_role,
-    get_current_user_id,
-)
-from tool_registry_service.schemas.common import Message, PaginatedResponse
-from tool_registry_service.schemas.tool import (
-    ToolCategoryCreate,
-    ToolCategoryResponse,
-    ToolCategoryUpdate,
-)
+from ..crud import tool_categories as crud
+from ..db import get_db
+from ..dependencies.user_deps import get_current_user_id, require_admin_user
+from ..logging_config import logger
+from ..schemas.common import Message, PaginatedResponse
+from ..schemas.tool import ToolCategoryCreate, ToolCategoryResponse, ToolCategoryUpdate
 
+# All routes in this file are for administrative purposes and are protected.
+# The `require_admin_user` dependency is applied to the entire router.
 router = APIRouter(
     prefix="/categories",
     tags=["tool categories"],
-    responses={401: {"model": Message}},
+    dependencies=[Depends(require_admin_user)],
+    responses={401: {"model": Message}, 403: {"model": Message}},
 )
-
-logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -44,17 +38,10 @@ logger = logging.getLogger(__name__)
 async def create_category(
     category: ToolCategoryCreate,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
 ):
     """
     Create a new tool category (admin only).
     """
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create tool categories",
-        )
 
     return await crud.create_tool_category(db, category)
 
@@ -116,17 +103,10 @@ async def update_category(
     category_id: UUID,
     category: ToolCategoryUpdate,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
 ):
     """
     Update an existing tool category (admin only).
     """
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update tool categories",
-        )
 
     return await crud.update_tool_category(db, category_id, category)
 
@@ -140,17 +120,10 @@ async def update_category(
 async def delete_category(
     category_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
 ):
     """
     Delete a tool category (admin only).
     """
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can delete tool categories",
-        )
 
     await crud.delete_tool_category(db, category_id)
 

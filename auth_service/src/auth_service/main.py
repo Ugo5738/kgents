@@ -150,7 +150,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 
-# --- Include Service-Specific Routers ---
+# --- Service-Specific Routers ---
 app.include_router(health_router)
 app.include_router(user_auth_router)
 app.include_router(token_router)

@@ -5,35 +5,34 @@ This module defines FastAPI routes for managing tools in the registry,
 including CRUD operations and search functionality.
 """
 
-import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Body, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tool_registry_service.crud import tools as crud
-from tool_registry_service.db import get_db
-from tool_registry_service.dependencies.auth import (
-    check_admin_role,
+from shared.schemas.user_schemas import UserTokenData
+from tool_registry_service.models.tool import ToolType
+
+from ..crud import tools as crud
+from ..db import get_db
+from ..dependencies.user_deps import (
     get_current_user_id,
+    get_current_user_token_data,
+    require_admin_user,
 )
-from tool_registry_service.models.tool import ExecutionEnvironment, ToolType
-from tool_registry_service.schemas.common import Message, PaginatedResponse
-from tool_registry_service.schemas.tool import (
-    ToolCreate,
-    ToolResponse,
-    ToolSearchParams,
-    ToolUpdate,
-)
+from ..logging_config import logger
+from ..schemas.common import Message, PaginatedResponse
+from ..schemas.tool import ToolCreate, ToolResponse, ToolSearchParams, ToolUpdate
 
 router = APIRouter(
     prefix="/tools",
     tags=["tools"],
-    responses={401: {"model": Message}},
 )
 
-logger = logging.getLogger(__name__)
+# This dependency ensures a user is authenticated for all routes in this file.
+# Public access is handled by passing an optional user_id to the CRUD layer.
+router.dependencies.append(Depends(get_current_user_id))
 
 
 @router.post(
@@ -164,27 +163,10 @@ async def get_tool(
 ):
     """
     Get a specific tool by ID.
-
-    Users can access:
-    - Their own tools
-    - Public tools
-    - Any tool if they're an admin
+    Access is granted if the user owns the tool or if the tool is public and approved.
+    Admins can access any tool.
     """
-    # If user is authenticated, check if they're an admin
-    is_admin = False
-    if user_id:
-        try:
-            is_admin = await check_admin_role(None)
-        except Exception:
-            # If check fails, assume not admin
-            pass
-
-    # If admin, can access any tool
-    if is_admin:
-        return await crud.get_tool(db, tool_id, check_ownership=False)
-
-    # Otherwise, get tool with ownership check
-    # If tool is public, non-owners can still access it
+    # The CRUD function `get_tool` handles the ownership and public access logic.
     return await crud.get_tool(db, tool_id, owner_id=user_id)
 
 
@@ -199,14 +181,11 @@ async def update_tool(
     tool: ToolUpdate,
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
+    token_data: UserTokenData = Depends(get_current_user_token_data),
 ):
-    """
-    Update an existing tool.
+    """Update a tool. Only the owner or an admin can perform this action."""
 
-    Users can only update their own tools.
-    Admins can update any tool.
-    """
+    is_admin = "admin" in token_data.roles
     return await crud.update_tool(
         db, tool_id, tool, owner_id=user_id, is_admin=is_admin
     )
@@ -222,39 +201,25 @@ async def delete_tool(
     tool_id: UUID,
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
+    token_data: UserTokenData = Depends(get_current_user_token_data),
 ):
-    """
-    Delete a tool.
-
-    Users can only delete their own tools.
-    Admins can delete any tool.
-    """
+    """Delete a tool. Only the owner or an admin can perform this action."""
+    is_admin = "admin" in token_data.roles
     await crud.delete_tool(db, tool_id, owner_id=user_id, is_admin=is_admin)
-
     return Message(detail=f"Tool {tool_id} deleted successfully")
 
 
 @router.post(
     "/{tool_id}/approve",
     response_model=ToolResponse,
-    summary="Approve tool",
+    summary="Approve tool (Admin Only)",
     description="Approve or reject a tool (admin only)",
+    dependencies=[Depends(require_admin_user)],  # Add admin check here specifically
 )
 async def approve_tool(
     tool_id: UUID,
     approved: bool = Body(..., description="Whether to approve or reject the tool"),
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_id),
-    is_admin: bool = Depends(check_admin_role),
 ):
-    """
-    Approve or reject a tool (admin only).
-    """
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can approve or reject tools",
-        )
-
+    """Approve or reject a tool's public visibility (admin only)."""
     return await crud.approve_tool(db, tool_id, approved)

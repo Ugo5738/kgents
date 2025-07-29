@@ -11,13 +11,13 @@ from typing import AsyncGenerator, List, Optional, Type
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tool_registry_service.models import base
+from shared.models import base
 
 
 async def create_db_objects(session: AsyncSession, objects: List[base.Base]) -> None:
     """
     Create multiple database objects in a single transaction.
-    
+
     Args:
         session: Database session
         objects: List of database model instances to create
@@ -32,12 +32,12 @@ async def get_by_id(
 ) -> Optional[base.Base]:
     """
     Get a database object by ID.
-    
+
     Args:
         session: Database session
         model: Model class
         id: Object ID
-        
+
     Returns:
         Optional[base.Base]: Retrieved object or None if not found
     """
@@ -51,13 +51,13 @@ async def run_in_transaction(
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Run operations in a transaction with automatic rollback.
-    
+
     This is useful for test setups where you want to create data
     but not have it affect other tests.
-    
+
     Args:
         session: Database session
-        
+
     Yields:
         AsyncSession: Session for use within the transaction
     """
@@ -73,7 +73,7 @@ async def run_in_transaction(
 async def cleanup_table(session: AsyncSession, model: Type[base.Base]) -> None:
     """
     Delete all records from a table.
-    
+
     Args:
         session: Database session
         model: Model class to clean up

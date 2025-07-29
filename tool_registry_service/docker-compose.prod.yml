@@ -4,13 +4,25 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
+    restart: always
     ports:
       - "8003:8000"
     env_file:
-      - ../.env # Uses the root .env file
+      - ./.env.prod # Uses the root .env file
     networks:
       - kgents_network
       - supabase_network_kgents
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
 
 networks:
   kgents_network:

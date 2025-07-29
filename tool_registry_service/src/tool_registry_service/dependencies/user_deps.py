@@ -9,8 +9,6 @@ from shared.schemas.user_schemas import UserTokenData
 from ..config import settings
 from ..logging_config import logger
 
-# This tells FastAPI where a client *would* go to get a token,
-# which is useful for OpenAPI documentation generation.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/users/login")
 
 
@@ -35,7 +33,6 @@ def get_current_user_token_data(token: str = Depends(oauth2_scheme)) -> UserToke
             audience=settings.M2M_JWT_AUDIENCE,
             issuer=settings.M2M_JWT_ISSUER,
         )
-
         # Validate the payload's structure using our Pydantic model.
         token_data = UserTokenData.model_validate(payload)
         return token_data
@@ -60,3 +57,18 @@ def get_current_user_id(
     if not token_data.user_id:
         raise HTTPException(status_code=400, detail="User ID (sub) missing from token")
     return UUID(token_data.user_id)
+
+
+def require_admin_user(
+    token_data: UserTokenData = Depends(get_current_user_token_data),
+) -> UserTokenData:
+    """
+    Dependency that checks if the current user has the 'admin' role.
+    Raises a 403 Forbidden error if the user is not an admin.
+    """
+    if "admin" not in token_data.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator privileges required for this operation.",
+        )
+    return token_data

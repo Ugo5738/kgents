@@ -7,23 +7,19 @@ services:
     ports:
       - "8003:8000"
     volumes:
+      # Mount the service's source code for hot-reloading
       - ./src:/app/src
-      - ./alembic:/app/alembic
-      - ./tests:/app/tests
-      - ./scripts:/app/scripts
+      # Mount the shared code as an editable package
+      - ../shared:/shared
     env_file:
-      - ./.env.dev # Load from the root .env file
+      - ./.env.dev # Load development environment variables
     environment:
       # Pass these variables to the container for the entrypoint script
+      - SERVICE_MODULE=tool_registry_service
       - TOOL_REGISTRY_SERVICE_POSTGRES_HOST=supabase_db_kgents
       - TOOL_REGISTRY_SERVICE_POSTGRES_PORT=5432
+      # Configure Python to find the shared package and auth_service module
+      - PYTHONPATH=/app/src:/app:/shared:$PYTHONPATH
     networks:
       - kgents_network
       - supabase_network_kgents # Connect to Supabase network from root compose
-
-networks:
-  kgents_network:
-    name: kgents_network
-    driver: bridge
-  supabase_network_kgents:
-    external: true

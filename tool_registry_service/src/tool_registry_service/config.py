@@ -1,22 +1,14 @@
-"""
-Configuration settings for the Tool Registry Service.
-
-This module defines Pydantic Settings classes for managing environment variables
-and application configuration following the same patterns as other services.
-"""
-
-import os
+# tool_registry_service/src/tool_registry_service/config.py
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Environment(str, Enum):
     DEVELOPMENT = "development"
     TESTING = "testing"
-    STAGING = "staging"
     PRODUCTION = "production"
 
 
@@ -28,37 +20,47 @@ class Settings(BaseSettings):
     to avoid conflicts with other services.
     """
 
-    # General App settings
+    model_config = SettingsConfigDict(
+        env_file=".env.dev",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # --- GENERAL APP SETTINGS ---
+    PROJECT_NAME: str = "Tool Registry Service"
+    DEBUG: bool = Field(False, alias="TOOL_REGISTRY_SERVICE_DEBUG")
     ENVIRONMENT: Environment = Field(
         Environment.DEVELOPMENT, alias="TOOL_REGISTRY_SERVICE_ENVIRONMENT"
     )
     LOGGING_LEVEL: str = Field("INFO", alias="TOOL_REGISTRY_SERVICE_LOGGING_LEVEL")
-    ROOT_PATH: str = Field("", alias="TOOL_REGISTRY_SERVICE_ROOT_PATH")
-    VERSION: str = "0.1.0"
-    DEBUG: bool = Field(False, alias="TOOL_REGISTRY_SERVICE_DEBUG")
-    PORT: int = Field(8000, alias="TOOL_REGISTRY_SERVICE_PORT")
-    RELOAD: bool = Field(False, alias="TOOL_REGISTRY_SERVICE_RELOAD")
-    SHOW_DOCS: bool = Field(True, alias="TOOL_REGISTRY_SERVICE_SHOW_DOCS")
+    ROOT_PATH: str = Field("/api/v1", alias="TOOL_REGISTRY_SERVICE_ROOT_PATH")
 
-    # Database settings
+    # --- DATABASE SETTINGS ---
     DATABASE_URL: str = Field(..., alias="TOOL_REGISTRY_SERVICE_DATABASE_URL")
-    POSTGRES_SERVER: str = Field(
-        "localhost", alias="TOOL_REGISTRY_SERVICE_POSTGRES_SERVER"
+    REDIS_URL: str = Field(
+        "redis://localhost:6379/0", alias="TOOL_REGISTRY_SERVICE_REDIS_URL"
     )
-    POSTGRES_USER: str = Field("postgres", alias="TOOL_REGISTRY_SERVICE_POSTGRES_USER")
-    POSTGRES_PASSWORD: str = Field(
-        "postgres", alias="TOOL_REGISTRY_SERVICE_POSTGRES_PASSWORD"
-    )
-    POSTGRES_DB: str = Field("tool_registry", alias="TOOL_REGISTRY_SERVICE_POSTGRES_DB")
-    POSTGRES_PORT: str = Field("5432", alias="TOOL_REGISTRY_SERVICE_POSTGRES_PORT")
 
-    # Authentication and authorization settings
-    AUTH_SERVICE_URL: str = Field(
-        "http://auth_service:8000", alias="TOOL_REGISTRY_SERVICE_AUTH_SERVICE_URL"
+    # --- CORS SETTINGS ---
+    CORS_ALLOW_ORIGINS: List[str] = Field(
+        ["*"], alias="TOOL_REGISTRY_SERVICE_CORS_ALLOW_ORIGINS"
     )
-    TOKEN_URL: str = Field(
-        "http://auth_service:8000/api/v1/auth/validate-token",
-        alias="TOOL_REGISTRY_SERVICE_TOKEN_URL",
+
+    # --- SERVICE-SPECIFIC SETTINGS ---
+    # Jwt validation settings
+    # These MUST match the values used by the auth_service to sign the tokens.
+    M2M_JWT_SECRET_KEY: str = Field(
+        ..., alias="TOOL_REGISTRY_SERVICE_M2M_JWT_SECRET_KEY"
+    )
+    M2M_JWT_ALGORITHM: str = Field(
+        "HS256", alias="TOOL_REGISTRY_SERVICE_M2M_JWT_ALGORITHM"
+    )
+    M2M_JWT_ISSUER: str = Field(
+        "kgents_auth_service", alias="TOOL_REGISTRY_SERVICE_M2M_JWT_ISSUER"
+    )
+    M2M_JWT_AUDIENCE: str = Field(
+        "kgents_microservices", alias="TOOL_REGISTRY_SERVICE_M2M_JWT_AUDIENCE"
     )
 
     # Tool execution settings
@@ -68,64 +70,24 @@ class Settings(BaseSettings):
     MAX_TOOL_EXECUTION_TIME_SECONDS: int = Field(
         30, alias="TOOL_REGISTRY_SERVICE_MAX_TOOL_EXECUTION_TIME_SECONDS"
     )
+    MAX_TOOL_OUTPUT_SIZE: int = Field(
+        1024 * 1024,  # Default to 1MB
+        alias="TOOL_REGISTRY_SERVICE_MAX_TOOL_OUTPUT_SIZE",
+        description="Maximum size of stdout/stderr buffer for tool execution in bytes.",
+    )
+    COMMAND_EXECUTION_ENABLED: bool = Field(
+        False,  # Default to False for security
+        alias="TOOL_REGISTRY_SERVICE_COMMAND_EXECUTION_ENABLED",
+        description="Enable or disable the execution of high-risk command-line tools.",
+    )
 
     # API key for accessing external services (if needed)
     API_KEY: Optional[str] = Field(None, alias="TOOL_REGISTRY_SERVICE_API_KEY")
 
-    # CORS settings
-    CORS_ALLOW_ORIGINS: List[str] = Field(
-        ["*"], alias="TOOL_REGISTRY_SERVICE_CORS_ALLOW_ORIGINS"
+    # Langflow Integration
+    LANGFLOW_API_URL: str = Field(
+        "http://langflow_ide:7860", alias="AGENT_MANAGEMENT_SERVICE_LANGFLOW_API_URL"
     )
-    CORS_ALLOW_METHODS: List[str] = Field(
-        ["*"], alias="TOOL_REGISTRY_SERVICE_CORS_ALLOW_METHODS"
-    )
-    CORS_ALLOW_HEADERS: List[str] = Field(
-        ["*"], alias="TOOL_REGISTRY_SERVICE_CORS_ALLOW_HEADERS"
-    )
-    CORS_ALLOW_CREDENTIALS: bool = Field(
-        True, alias="TOOL_REGISTRY_SERVICE_CORS_ALLOW_CREDENTIALS"
-    )
-
-    @field_validator("DATABASE_URL")
-    def validate_database_url(cls, v: str, info: Any) -> str:
-        """Validate and possibly construct the database URL.
-
-        If DATABASE_URL is not provided, attempts to construct it from individual components.
-        Also ensures that the URL is properly formatted for use with the psycopg driver.
-
-        Args:
-            v: The current value of DATABASE_URL
-            info: Validation information containing other field values
-
-        Returns:
-            The validated or constructed DATABASE_URL
-        """
-        if not v and all(
-            [
-                info.data.get("POSTGRES_SERVER"),
-                info.data.get("POSTGRES_USER"),
-                info.data.get("POSTGRES_PASSWORD"),
-                info.data.get("POSTGRES_DB"),
-            ]
-        ):
-            # Construct database URL from components
-            db_host = info.data.get("POSTGRES_SERVER")
-            db_port = info.data.get("POSTGRES_PORT", "5432")
-            db_user = info.data.get("POSTGRES_USER")
-            db_pass = info.data.get("POSTGRES_PASSWORD")
-            db_name = info.data.get("POSTGRES_DB")
-
-            return f"postgresql+psycopg://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-
-        # Ensure the URL uses psycopg driver if it's not already specified
-        if (
-            v
-            and v.startswith("postgresql://")
-            and not v.startswith("postgresql+psycopg://")
-        ):
-            v = v.replace("postgresql://", "postgresql+psycopg://")
-
-        return v
 
     def is_production(self) -> bool:
         return self.ENVIRONMENT == Environment.PRODUCTION
@@ -136,10 +98,11 @@ class Settings(BaseSettings):
     def is_testing(self) -> bool:
         return self.ENVIRONMENT == Environment.TESTING
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
-    )
+    @field_validator("DATABASE_URL", mode="after")
+    def validate_db_url(cls, v: PostgresDsn) -> str:
+        """Ensures the database URL uses the psycopg driver."""
+        return str(v).replace("postgresql://", "postgresql+psycopg://")
 
 
-# Create a global instance of settings
+# Global instance of the settings
 settings = Settings()

@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from agent_management_service.config import settings
-from agent_management_service.logging_config import logger
 from shared.models.base import Base
+
+from .config import settings
+from .logging_config import logger
 
 _engine: Optional[AsyncEngine] = None
 _async_session_factory: Optional[Callable[..., AsyncSession]] = None

@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, func
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 from sqlalchemy.orm import declarative_base
 
@@ -33,3 +34,16 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class OwnershipMixin:
+    """Mixin to provide ownership tracking for models."""
+
+    # This assumes ownership is tracked by a UUID referencing auth.users.id
+    owner_id = Column(pgUUID(as_uuid=True), nullable=False, index=True)
+
+
+class MetadataMixin:
+    """Mixin to provide a JSON metadata column for models."""
+
+    metadata = Column(JSON, nullable=True, default=dict)

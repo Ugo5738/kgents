@@ -5,7 +5,6 @@ This module defines FastAPI routes for executing tools in a secure sandbox envir
 and tracking execution history.
 """
 
-import logging
 import time
 import uuid
 from typing import Any, Dict, Optional
@@ -14,28 +13,25 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tool_registry_service.config import settings
-from tool_registry_service.crud import tools as tool_crud
-from tool_registry_service.db import get_db
-from tool_registry_service.dependencies.auth import get_current_user_id
-from tool_registry_service.models.tool import Tool, ToolExecution
-from tool_registry_service.schemas.common import Message
-from tool_registry_service.schemas.tool import (
-    ToolExecutionRequest,
-    ToolExecutionResponse,
-)
 from tool_registry_service.services.execution_service import (
     execute_tool,
     sanitize_inputs,
 )
+
+from ..config import settings
+from ..crud import tools as tool_crud
+from ..db import get_db
+from ..dependencies.user_deps import get_current_user_id
+from ..logging_config import logger
+from ..models.tool import Tool, ToolExecution
+from ..schemas.common import Message
+from ..schemas.tool import ToolExecutionRequest, ToolExecutionResponse
 
 router = APIRouter(
     prefix="/execute",
     tags=["tool execution"],
     responses={401: {"model": Message}},
 )
-
-logger = logging.getLogger(__name__)
 
 
 @router.post(

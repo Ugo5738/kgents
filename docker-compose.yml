@@ -9,10 +9,10 @@ services:
       file: agent_management_service/docker-compose.dev.yml
       service: agent_management_service_dev
 
-  # tool_registry_service:
-  #   extends:
-  #     file: tool_registry_service/docker-compose.dev.yml
-  #     service: tool_registry_service_dev
+  tool_registry_service:
+    extends:
+      file: tool_registry_service/docker-compose.dev.yml
+      service: tool_registry_service_dev
 
   # nl_agents_service:
   #   extends:

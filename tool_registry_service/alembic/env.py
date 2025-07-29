@@ -2,27 +2,32 @@ import asyncio
 import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine
 
-# Add the src directory to sys.path to allow imports
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
+# --- Path Setup for Alembic ---
+# This ensures that Alembic can find all the necessary modules from both
+# the service's `src` directory and the project's shared `shared` directory.
+service_dir = Path(__file__).parent.parent.absolute()
+project_root = service_dir.parent
 
-from src.tool_registry_service.config import settings
+# Add the service's own source code to the path
+sys.path.insert(0, str(service_dir / "src"))
+# Add the shared library to the path
+sys.path.insert(0, str(project_root))
 
-# Import SQLAlchemy components
-from src.tool_registry_service.db import Base
+# Now we can safely import our project's modules
+from tool_registry_service.config import settings
+from tool_registry_service.db import Base
 
 # Import all models to ensure they're registered with Base.metadata
-# We're importing the __init__.py which should import all models
-from src.tool_registry_service.models import *
+from tool_registry_service.models import *
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# --- Alembic Configuration ---
 config = context.config
 
 # Interpret the config file for Python logging.
@@ -30,9 +35,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Set the database URL for Alembic from our settings
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
-# Set target_metadata to our SQLAlchemy Base.metadata for autogenerate support
+# Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
 
 
@@ -59,41 +65,21 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
-
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-async def run_async_migrations() -> None:
-    """Run migrations in 'online' mode with async engine.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-    """
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
+async def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    connectable = create_async_engine(settings.DATABASE_URL)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
-
     await connectable.dispose()
 
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    This is the primary function to call for migrations when
-    running against a database.
-    """
-    asyncio.run(run_async_migrations())
+def do_run_migrations(connection):
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    asyncio.run(run_migrations_online())

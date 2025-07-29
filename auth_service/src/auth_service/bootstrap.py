@@ -15,6 +15,7 @@ from auth_service.supabase_client import get_supabase_admin_client
 # Define roles and permissions for the Kgents platform
 CORE_ROLES = {
     "admin": "Full administrative access.",
+    "user": "A standard, authenticated user.",
     "free_tier_user": "Standard user on a free plan.",
     "pro_tier_user": "User with access to premium features.",
     "agent_runtime_client": "Service role for deployed AI agents.",
