@@ -7,9 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from .bootstrap import bootstrap_admin_and_rbac
 from .config import settings
-from .db import get_db
 from .logging_config import logger, setup_logging, setup_middleware
 from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
 from .routers import admin_router, health_router, token_router, user_auth_router
@@ -29,7 +27,7 @@ async def lifespan(app: FastAPI):
     app.logger.info(f"'{settings.PROJECT_NAME}' startup sequence initiated.")
     app.startup_time = time.time()
 
-    # 1. Initialize app-wide resources (like the global Supabase client)
+    # Initialize app-wide resources (like the global Supabase client)
     try:
         await init_supabase_clients()
         logger.info("Supabase clients initialized successfully")
@@ -37,17 +35,6 @@ async def lifespan(app: FastAPI):
         logger.error(
             f"Failed to initialize Supabase clients: {e.__class__.__name__}: {str(e)}"
         )
-
-    # 2. Run bootstrap process with retry logic
-    app.logger.info("Running bootstrap process...")
-    try:
-        async for session in get_db():
-            # Use the session for bootstrap but don't close it here
-            # bootstrap_admin_and_rbac manages its own transaction
-            await bootstrap_admin_and_rbac(session)
-            break
-    except Exception as e:
-        logger.error(f"Bootstrap process failed: {e}", exc_info=True)
 
     # Application is now ready to serve requests
     app.logger.info("Application startup complete.")

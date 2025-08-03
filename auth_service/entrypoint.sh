@@ -19,12 +19,10 @@ while ! nc -z $DB_HOST $DB_PORT; do
 done
 echo "Database is ready."
 
-# 2. Run ONLY the database migrations.
-# The application bootstrap (creating users, roles, etc.) will be handled
-# by the FastAPI lifespan manager inside the running application.
-echo "Running Alembic migrations..."
+# Run the full initialization and bootstrap process from the Python script
+echo "Initializing database, schema, and running migrations..."
 python scripts/manage_db.py init
-echo "Alembic migrations complete."
+echo "Database initialization complete."
 
 # Execute the main command (uvicorn)
 echo "Starting Auth Service..."

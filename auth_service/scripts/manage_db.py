@@ -299,8 +299,18 @@ async def init_service(db_params: Dict):
     # Create database if it doesn't exist
     create_db(db_params)
 
+    # After creating the DB, explicitly create the schema before migrating.
+    logger.info("--- Creating application schema 'auth_service_data' ---")
+    conn_str = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
+    run_command(
+        f"psql \"{conn_str}\" -c 'CREATE SCHEMA IF NOT EXISTS auth_service_data'"
+    )
+
     # Run migrations
     run_command("alembic upgrade head")
+
+    # Run the bootstrap process after migrations
+    await bootstrap_service()
 
     logger.info(colored("Auth service initialization completed successfully.", "green"))
 

@@ -176,9 +176,7 @@ async def register_user(
             )
 
         profile_data = ProfileCreate(user_id=supa_user.id, **user_in.model_dump())
-        created_profile = await create_profile(
-            db=db_session, profile_in=profile_data
-        )
+        created_profile = await create_profile(db=db_session, profile_in=profile_data)
 
         if not created_profile:
             logger.error(

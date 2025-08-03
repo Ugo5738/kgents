@@ -110,12 +110,12 @@ def setup_logging(app: FastAPI = None):
 
 def setup_middleware(app: FastAPI):
     """Register all middleware for the application.
-    
+
     IMPORTANT: Must be called during application initialization, not during lifespan.
     """
     # Add request ID middleware
     app.add_middleware(RequestIdMiddleware)
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -124,7 +124,7 @@ def setup_middleware(app: FastAPI):
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Add logging middleware
     app.add_middleware(LoggingMiddleware)
 
