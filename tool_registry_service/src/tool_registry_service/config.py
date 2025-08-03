@@ -63,6 +63,15 @@ class Settings(BaseSettings):
         "kgents_microservices", alias="TOOL_REGISTRY_SERVICE_M2M_JWT_AUDIENCE"
     )
 
+    USER_JWT_SECRET_KEY: str = Field(
+        ..., alias="TOOL_REGISTRY_SERVICE_USER_JWT_SECRET_KEY"
+    )
+    USER_JWT_ALGORITHM: str = Field(
+        "HS256", alias="TOOL_REGISTRY_SERVICE_USER_JWT_ALGORITHM"
+    )
+    USER_JWT_ISSUER: str = Field(..., alias="TOOL_REGISTRY_SERVICE_USER_JWT_ISSUER")
+    USER_JWT_AUDIENCE: str = Field(..., alias="TOOL_REGISTRY_SERVICE_USER_JWT_AUDIENCE")
+
     # Tool execution settings
     SANDBOX_EXECUTION_ENABLED: bool = Field(
         True, alias="TOOL_REGISTRY_SERVICE_SANDBOX_EXECUTION_ENABLED"

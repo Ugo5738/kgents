@@ -9,6 +9,8 @@ services:
     volumes:
       # Mount the service's source code for hot-reloading
       - ./src:/app/src
+      # Mount the alembic directory for migration development
+      - ./alembic:/app/alembic
       # Mount the shared code as an editable package
       - ../shared:/shared
     env_file:

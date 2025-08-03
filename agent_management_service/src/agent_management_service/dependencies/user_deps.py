@@ -18,33 +18,55 @@ def get_current_user_token_data(token: str = Depends(oauth2_scheme)) -> UserToke
     """
     A dependency that decodes and validates a JWT locally.
     It returns the token's payload if validation is successful.
-    This is the core of our stateless authentication pattern.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    payload = None
+
     try:
         # Decode the JWT. This function checks the signature, expiration,
         # audience, and issuer all at once.
         payload = jwt.decode(
             token,
-            settings.M2M_JWT_SECRET_KEY,  # The shared secret key
-            algorithms=[settings.M2M_JWT_ALGORITHM],
-            audience=settings.M2M_JWT_AUDIENCE,
-            issuer=settings.M2M_JWT_ISSUER,
+            settings.USER_JWT_SECRET_KEY,
+            algorithms=[settings.USER_JWT_ALGORITHM],
+            audience=settings.USER_JWT_AUDIENCE,
+            issuer=settings.USER_JWT_ISSUER,
         )
+    except JWTError as e:
+        logger.warning(
+            f"Failed to validate as a user token: {e}. Trying M2M validation..."
+        )
+        # If it fails, we don't immediately raise. We'll try the M2M secret next.
+        pass
 
-        # Validate the payload's structure using our Pydantic model.
+    # Step 2: If user validation failed, try to validate as an M2M token
+    if payload is None:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.M2M_JWT_SECRET_KEY,
+                algorithms=[settings.M2M_JWT_ALGORITHM],
+                audience=settings.M2M_JWT_AUDIENCE,
+                issuer=settings.M2M_JWT_ISSUER,
+            )
+        except JWTError as e:
+            logger.error(
+                f"Failed to validate as M2M token after user validation failed: {e}"
+            )
+            # If both fail, the token is truly invalid.
+            raise credentials_exception
+
+    # Step 3: If we have a valid payload, parse it with our shared schema
+    try:
         token_data = UserTokenData.model_validate(payload)
         return token_data
-
-    except JWTError as e:
-        logger.warning(f"JWT validation error: {e}")
-        raise credentials_exception
     except Exception as e:
-        logger.error(f"An unexpected error occurred during token decoding: {e}")
+        logger.error(f"Token payload failed Pydantic validation: {e}")
         raise credentials_exception
 
 
@@ -59,4 +81,4 @@ def get_current_user_id(
     """
     if not token_data.user_id:
         raise HTTPException(status_code=400, detail="User ID (sub) missing from token")
-    return UUID(token_data.user_id)
+    return token_data.user_id

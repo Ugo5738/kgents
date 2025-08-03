@@ -98,7 +98,7 @@ class ToolBase(BaseModel):
         None, description="URL to tool documentation"
     )
 
-    tool_schema: Optional[Dict[str, Any]] = Field(
+    schema: Optional[Dict[str, Any]] = Field(
         None, alias="schema", description="JSON Schema for tool inputs/outputs"
     )
 
@@ -154,7 +154,7 @@ class ToolUpdate(BaseModel):
     version: Optional[str] = Field(None, pattern=r"^\d+\.\d+\.\d+$")
 
     implementation: Optional[Dict[str, Any]] = Field(None)
-    tool_schema: Optional[Dict[str, Any]] = Field(None, alias="schema")
+    schema: Optional[Dict[str, Any]] = Field(None, alias="schema")
 
     requires_auth: Optional[bool] = Field(None)
     execution_env: Optional[ExecutionEnvironment] = Field(None)

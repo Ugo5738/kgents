@@ -64,6 +64,17 @@ class Settings(BaseSettings):
         "kgents_microservices", alias="AGENT_MANAGEMENT_SERVICE_M2M_JWT_AUDIENCE"
     )
 
+    USER_JWT_SECRET_KEY: str = Field(
+        ..., alias="AGENT_MANAGEMENT_SERVICE_USER_JWT_SECRET_KEY"
+    )
+    USER_JWT_ALGORITHM: str = Field(
+        "HS256", alias="AGENT_MANAGEMENT_SERVICE_USER_JWT_ALGORITHM"
+    )
+    USER_JWT_ISSUER: str = Field(..., alias="AGENT_MANAGEMENT_SERVICE_USER_JWT_ISSUER")
+    USER_JWT_AUDIENCE: str = Field(
+        ..., alias="AGENT_MANAGEMENT_SERVICE_USER_JWT_AUDIENCE"
+    )
+
     # Langflow Integration
     LANGFLOW_API_URL: str = Field(
         "http://langflow_ide:7860", alias="AGENT_MANAGEMENT_SERVICE_LANGFLOW_API_URL"
