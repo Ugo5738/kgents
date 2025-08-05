@@ -8,10 +8,9 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from .config import settings
-from .db import get_db
 from .logging_config import setup_logging, setup_middleware
 from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
-from .routers import agent_router, health_router, langflow_router, version_router
+from .routers import deployment_router, health_router
 
 
 @asynccontextmanager
@@ -19,10 +18,6 @@ async def lifespan(app: FastAPI):
     """Application lifecycle manager with robust initialization.
 
     Handles startup and shutdown sequences with proper error handling and retry logic.
-    Features:
-    - Graceful initialization of Supabase clients
-    - Resilient database connection for bootstrap process
-    - Proper cleanup on application shutdown
     """
     app.logger.info(f"'{settings.PROJECT_NAME}' startup sequence initiated.")
     app.startup_time = time.time()
@@ -39,7 +34,7 @@ setup_logging()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Service for managing agents including creation, version history, and configurations",
+    description="Service for deploying and managing the lifecycle of AI agents.",
     version="1.0.0",
     root_path=settings.ROOT_PATH,
     lifespan=lifespan,
@@ -94,10 +89,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # --- Include API routers - all protected by default ---
+app.include_router(deployment_router)
 app.include_router(health_router)
-app.include_router(agent_router)
-app.include_router(version_router)
-app.include_router(langflow_router)
 
 # Add a logger attribute to the app for easy access in routes if needed
-app.logger = logging.getLogger("agent_management_service")
+app.logger = logging.getLogger("agent_deployment_service")

@@ -1,0 +1,50 @@
+# agent_deployment_service/Dockerfile.prod
+# Production-optimized Docker image
+
+FROM python:3.12-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PIP_NO_CACHE_DIR=off \
+  PIP_DISABLE_PIP_VERSION_CHECK=on
+
+WORKDIR /app
+
+# Install Poetry
+RUN pip install --no-cache-dir poetry
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Configure poetry to not use virtualenvs
+RUN poetry config virtualenvs.create false
+
+# Install dependencies only (without dev dependencies)
+RUN poetry install --no-interaction --no-ansi --no-root --without dev
+
+# Copy source code
+COPY . .
+
+# Install the package
+RUN poetry install --no-interaction --no-ansi --only-root
+
+# Clean up build artifacts
+RUN apt-get clean && \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create a non-root user
+RUN adduser --disabled-password --gecos "" appuser
+
+# Switch to the non-root user
+USER appuser
+
+# Expose the application port
+EXPOSE 8000
+
+# Health check to verify the service is running properly
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health/readiness || exit 1
+
+# Run the application
+CMD ["uvicorn", "src.agent_deployment_service.main:app", "--host", "0.0.0.0", "--port", "8000"]

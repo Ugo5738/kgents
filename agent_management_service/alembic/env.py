@@ -7,6 +7,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -16,6 +17,13 @@ from sqlalchemy.ext.asyncio import create_async_engine
 # the service's `src` directory and the project's shared `shared` directory.
 service_dir = Path(__file__).parent.parent.absolute()
 project_root = service_dir.parent
+
+# Load the development environment variables from the .env.dev file
+dotenv_path = service_dir / ".env.dev"
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path, override=True)
+else:
+    print(f"Warning: .env.dev file not found at {dotenv_path}")
 
 # Add the service's own source code to the path
 sys.path.insert(0, str(service_dir / "src"))

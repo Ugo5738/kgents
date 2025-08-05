@@ -1,0 +1,34 @@
+# agent_deployment_service/docker-compose.prod.yml
+services:
+  agent_deployment_service_prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    restart: always
+    ports:
+      - "8002:8000"
+    env_file:
+      - ./.env.prod
+    networks:
+      - kgents_network
+      - supabase_network_kgents
+    depends_on:
+      db_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+networks:
+  kgents_network:
+    external: true
+  supabase_network_kgents:
+    external: true

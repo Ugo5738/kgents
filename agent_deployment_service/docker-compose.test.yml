@@ -1,0 +1,23 @@
+# agent_deployment_service/docker-compose.test.yml
+services:
+  agent_deployment_service_test:
+    build:
+      context: .
+      dockerfile: Dockerfile # Can reuse dev Dockerfile for testing
+    environment:
+      - AGENT_DEPLOYMENT_SERVICE_ENVIRONMENT=testing
+      # Override database URL for an isolated test database
+      - AGENT_DEPLOYMENT_SERVICE_DATABASE_URL=postgresql+psycopg://postgres:postgres@supabase_db_kgents:54322/agent_deployment_test_db
+    env_file:
+      - ./.env.test
+    networks:
+      - kgents_network
+      - supabase_network_kgents
+    command: ["pytest", "-v", "tests/"]
+
+networks:
+  kgents_network:
+    name: kgents_network
+    driver: bridge
+  supabase_network_kgents:
+    external: true

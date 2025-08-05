@@ -1,0 +1,20 @@
+# Dockerfile template for a Langflow agent runtime
+FROM langflowai/langflow:latest
+
+# Copy the specific flow configuration into the container
+COPY flow.json /app/langflow/flow.json
+
+# Expose the port the Langflow runtime will listen on
+EXPOSE 8080
+
+# The command to run the flow in headless API mode
+CMD [
+    "langflow",
+    "run",
+    "--flow-path",
+    "/app/langflow/flow.json",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8080"
+]

@@ -31,11 +31,11 @@ sys.path.insert(0, str(service_dir / "src"))
 sys.path.insert(0, str(project_root))
 
 # Now we can safely import our project's modules
-from auth_service.config import settings
-from auth_service.db import Base
+from agent_deployment_service.config import settings
+from agent_deployment_service.db import Base
 
 # Import all models to ensure they're registered with Base.metadata
-from auth_service.models import *
+from agent_deployment_service.models import *
 
 # --- Alembic Configuration ---
 config = context.config
@@ -52,51 +52,41 @@ config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 target_metadata = Base.metadata
 
 
-# --- Ignore the 'auth' schema during autogeneration ---
-def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and object.schema == "auth":
-        return False
-    else:
-        return True
-
-
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        include_object=include_object,
-        include_schemas=True,
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def do_run_migrations(connection: Connection):
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        include_object=include_object,
-        compare_type=True,  # Recommended when using include_object
-        include_schemas=True,
-    )
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_migrations_online() -> None:
-    connectable = create_async_engine(
-        str(settings.DATABASE_URL),
-        poolclass=pool.NullPool,
-        connect_args={"options": "-c search_path=auth_service_data,public"},
-    )
+    """Run migrations in 'online' mode."""
+    connectable = create_async_engine(settings.DATABASE_URL)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
+
+
+def do_run_migrations(connection):
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
 
 
 if context.is_offline_mode():

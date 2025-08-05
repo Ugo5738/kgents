@@ -14,12 +14,13 @@ from pathlib import Path
 from typing import Dict
 
 # --- Path Setup ---
+# Ensures the script can find all necessary project modules
 service_dir = Path(__file__).parent.parent.absolute()
 project_root = service_dir.parent
 sys.path.insert(0, str(service_dir / "src"))
 sys.path.insert(0, str(project_root))
 
-from tool_registry_service.config import settings
+from dotenv import load_dotenv
 
 # --- Logging and Helpers ---
 logging.basicConfig(
@@ -186,6 +187,17 @@ async def recreate_environment(db_params: Dict):
 
 # --- Main Command Orchestrator ---
 async def main():
+    dotenv_path = service_dir / ".env.dev"
+    if dotenv_path.exists():
+        logger.info(f"Loading environment variables from {dotenv_path}")
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+    else:
+        logger.warning(
+            f"{dotenv_path} not found. Relying on shell environment variables."
+        )
+
+    from tool_registry_service.config import settings
+
     parser = argparse.ArgumentParser(
         description=f"{settings.PROJECT_NAME} Database Management Tool"
     )

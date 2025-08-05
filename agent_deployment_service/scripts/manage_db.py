@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# agent_management_service/scripts/manage_db.py
+# agent_deployment_service/scripts/manage_db.py
 
 """
-Database management CLI for the Agent Management Service.
+Database management CLI for the Agent Deployment Service.
 """
 import argparse
 import asyncio
@@ -44,24 +44,30 @@ def colored(text: str, color: str) -> str:
 def run_command(command: str, check: bool = True):
     logger.info(colored(f"--- Running: {command} ---", "yellow"))
     try:
-        process = subprocess.Popen(
+        # Using subprocess.run for simpler execution and error handling
+        result = subprocess.run(
             command,
             shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            check=check,
             text=True,
+            capture_output=True,
             cwd=service_dir,
-            bufsize=1,
         )
-        for line in iter(process.stdout.readline, ""):
-            print(line, end="")
-        process.wait()
-        if check and process.returncode != 0:
-            raise RuntimeError(f"Command failed with exit code {process.returncode}")
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            # Print stderr in yellow for warnings, as alembic often prints info here
+            print(colored(result.stderr, "yellow"), file=sys.stderr)
+        result.check_returncode()
+    except subprocess.CalledProcessError as e:
+        logger.error(colored(f"Command failed with exit code {e.returncode}", "red"))
+        if e.stdout:
+            print(e.stdout)
+        if e.stderr:
+            print(colored(e.stderr, "red"), file=sys.stderr)
+        raise
     except Exception as e:
-        logger.error(
-            colored(f"An error occurred while running the command: {e}", "red")
-        )
+        logger.error(colored(f"An error occurred: {e}", "red"))
         raise
 
 
@@ -132,7 +138,7 @@ def reset_migrations():
 
 # Placeholder for future bootstrap logic
 async def bootstrap_service():
-    logger.info("Running service data bootstrap for agent_management_service...")
+    logger.info("Running service data bootstrap for agent_deployment_service...")
     # Add any data seeding logic here if needed in the future
     logger.info(colored("Bootstrap complete (no-op for now).", "green"))
 
@@ -142,7 +148,7 @@ async def recreate_environment(db_params: Dict):
     Stops, resets, and restarts the entire Supabase stack, then migrates and bootstraps the database.
     This is the definitive way to get a clean slate.
     """
-    logger.info("--- Recreating environment for Agent Management Service ---")
+    logger.info("--- Recreating environment for Agent Deployment Service ---")
     # logger.info("--- Stopping Supabase stack for a full reset ---")
     # run_command("supabase stop --no-backup")
     # logger.info(colored("Supabase stack stopped.", "green"))
@@ -183,7 +189,7 @@ async def main():
             f"{dotenv_path} not found. Relying on shell environment variables."
         )
 
-    from agent_management_service.config import settings
+    from agent_deployment_service.config import settings
 
     parser = argparse.ArgumentParser(
         description=f"{settings.PROJECT_NAME} Database Management Tool"

@@ -14,6 +14,11 @@ services:
       file: tool_registry_service/docker-compose.dev.yml
       service: tool_registry_service_dev
 
+  agent_deployment_service:
+    extends:
+      file: agent_deployment_service/docker-compose.dev.yml
+      service: agent_deployment_service_dev
+
   # nl_agents_service:
   #   extends:
   #     file: nl_agents_service/docker-compose.dev.yml
