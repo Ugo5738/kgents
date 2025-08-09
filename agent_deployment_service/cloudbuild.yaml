@@ -1,0 +1,31 @@
+# Cloud Build configuration for building agent runtime containers
+# This ensures linux/amd64 architecture for Cloud Run compatibility
+steps:
+  # Build the Docker image for linux/amd64
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'buildx'
+      - 'create'
+      - '--use'
+    id: 'setup-buildx'
+  
+  # Build and push the multi-platform image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'buildx'
+      - 'build'
+      - '--platform=linux/amd64'
+      - '-t'
+      - '${_IMAGE_TAG}'
+      - '--push'
+      - '.'
+    dir: '${_BUILD_DIR}'
+    id: 'build-and-push'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  
+# Substitutions will be provided by the orchestration service
+substitutions:
+  _IMAGE_TAG: 'us-central1-docker.pkg.dev/kgents/kgents-images/test:latest'
+  _BUILD_DIR: '.'

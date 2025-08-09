@@ -21,6 +21,13 @@ class DeploymentCreate(BaseModel):
     agent_version_id: UUID = Field(
         ..., description="The specific version ID of the agent to deploy."
     )
+    deploy_real_agent: bool = Field(
+        True,
+        description=(
+            "If true, deploy with the real Langflow agent Dockerfile template; "
+            "otherwise use the lightweight test template."
+        ),
+    )
 
 
 class DeploymentUpdate(BaseModel):
@@ -41,6 +48,13 @@ class DeploymentUpdate(BaseModel):
     error_message: Optional[str] = Field(
         None, description="Error details if the deployment failed."
     )
+    deploy_real_agent: Optional[bool] = Field(
+        None,
+        description=(
+            "Optionally toggle to deploy the real Langflow agent template. "
+            "If omitted, the existing setting is unchanged."
+        ),
+    )
 
 
 class DeploymentResponse(BaseModel):
@@ -54,6 +68,7 @@ class DeploymentResponse(BaseModel):
     endpoint_url: Optional[str] = None
     deployment_metadata: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    deploy_real_agent: bool
     created_at: datetime
     updated_at: datetime
 

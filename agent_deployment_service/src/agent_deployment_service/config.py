@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, List, Optional
 
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import AliasChoices, Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -77,10 +77,10 @@ class Settings(BaseSettings):
 
     # --- INTERNAL SERVICE-TO-SERVICE SETTINGS ---
     AUTH_SERVICE_URL: str = Field(
-        "http://auth_service:8001", alias="AGENT_DEPLOYMENT_SERVICE_AUTH_SERVICE_URL"
+        "http://auth_service:8000", alias="AGENT_DEPLOYMENT_SERVICE_AUTH_SERVICE_URL"
     )
     AGENT_MANAGEMENT_SERVICE_URL: str = Field(
-        "http://agent_management_service:8002",
+        "http://agent_management_service:8000",
         alias="AGENT_DEPLOYMENT_SERVICE_AGENT_MANAGEMENT_SERVICE_URL",
     )
     DEPLOYMENT_SERVICE_CLIENT_ID: str = Field(
@@ -103,8 +103,22 @@ class Settings(BaseSettings):
 
     # --- DEPLOYMENT SETTINGS ---
     DEPLOYMENT_STRATEGY: str = Field(
-        "cloud_run", alias="AGENT_DEPLOYMENT_SERVICE_DEPLOYMENT_STRATEGY"
+        "cloud_run",
+        alias="AGENT_DEPLOYMENT_SERVICE_DEPLOYMENT_STRATEGY",
     )
+    BUILD_STRATEGY: str = Field(
+        "github_actions",  # Options: "cloud_build" (default, costs money) or "github_actions" (free!)
+        alias="AGENT_DEPLOYMENT_SERVICE_BUILD_STRATEGY",
+        description="Strategy for building Docker images: cloud_build or github_actions",
+    )
+    # Optional: explicitly set Docker build platform (e.g., "linux/amd64" or "linux/arm64").
+    # If unset, we won't pass a platform to the Docker SDK, letting the engine default apply.
+    DOCKER_BUILD_PLATFORM: str | None = Field(
+        default=None, alias="AGENT_DEPLOYMENT_SERVICE_DOCKER_BUILD_PLATFORM"
+    )
+    GITHUB_TOKEN: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_TOKEN")
+    GITHUB_OWNER: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_OWNER")
+    GITHUB_REPO: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_REPO")
 
     # --- LANGFLOW SETTINGS ---
     LANGFLOW_API_URL: str = Field(

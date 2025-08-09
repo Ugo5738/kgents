@@ -44,6 +44,10 @@ CORE_PERMISSIONS = [
         "name": "admin:manage_platform",
         "description": "Allows managing users and platform settings.",
     },
+    {
+        "name": "system:agents:read",
+        "description": "Allows a system service to read any agent or version configuration for internal processes like deployment.",
+    },
 ]
 
 # Role-permission mapping for initial setup
@@ -57,7 +61,7 @@ ROLE_PERMISSIONS_MAP = {
         "multi_agent_workflow:create",
     ],
     "free_tier_user": ["agent:create"],
-    "agent_runtime_client": [],
+    "agent_runtime_client": ["system:agents:read"],
 }
 
 

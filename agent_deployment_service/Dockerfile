@@ -16,16 +16,23 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /app
 
-# Install Google Cloud SDK
+# Install Google Cloud SDK and Docker CLI
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Dependencies for gcloud SDK
     curl \
     gnupg \
     apt-transport-https \
     ca-certificates \
+    lsb-release \
     # Dependencies for our entrypoint script
     netcat-openbsd \
     postgresql-client \
+    # Install Docker CLI for buildx support
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-buildx-plugin \
     # Dependencies for gcloud SDK
     && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
     && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \

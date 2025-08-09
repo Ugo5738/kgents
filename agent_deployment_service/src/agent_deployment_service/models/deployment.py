@@ -7,7 +7,7 @@ their status, and associated metadata.
 """
 from enum import Enum
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLAEnum
 from sqlalchemy import ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -89,6 +89,14 @@ class Deployment(Base, UUIDMixin, TimestampMixin):
         Text,
         nullable=True,
         comment="Stores any error messages if the deployment fails.",
+    )
+
+    # --- Feature flags / options ---
+    deploy_real_agent = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="If true, use the real Langflow agent Dockerfile template; otherwise use the test template.",
     )
 
     def __repr__(self):

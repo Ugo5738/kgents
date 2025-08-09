@@ -96,7 +96,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 # --- Include API routers - all protected by default ---
 app.include_router(health_router)
 app.include_router(agent_router)
-app.include_router(version_router)
+app.include_router(version_router, prefix="/agents/{agent_id}")
 app.include_router(langflow_router)
 
 # Add a logger attribute to the app for easy access in routes if needed

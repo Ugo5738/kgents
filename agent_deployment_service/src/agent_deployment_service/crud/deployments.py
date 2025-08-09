@@ -13,12 +13,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_deployment_service.logging_config import logger
-from agent_deployment_service.models.deployment import Deployment, DeploymentStatus
-from agent_deployment_service.schemas.deployment_schemas import (
-    DeploymentCreate,
-    DeploymentUpdate,
-)
+from ..logging_config import logger
+from ..models import Deployment, DeploymentStatus
+from ..schemas import DeploymentCreate, DeploymentUpdate
 
 
 async def create_deployment(
@@ -44,6 +41,7 @@ async def create_deployment(
         agent_version_id=deployment_data.agent_version_id,
         user_id=user_id,
         status=DeploymentStatus.PENDING,  # Always starts as pending
+        deploy_real_agent=bool(getattr(deployment_data, "deploy_real_agent", True)),
     )
 
     db.add(new_deployment)

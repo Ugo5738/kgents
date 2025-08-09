@@ -1,0 +1,69 @@
+name: Build Agent Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: 'Deployment ID'
+        required: true
+        type: string
+      image_tag:
+        description: 'Full image tag (e.g., us-central1-docker.pkg.dev/PROJECT/REPO/IMAGE:TAG)'
+        required: true
+        type: string
+      build_context:
+        description: 'Base64 encoded tar.gz of build context'
+        required: true
+        type: string
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # For Workload Identity Federation
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Extract build context
+        run: |
+          echo "${{ github.event.inputs.build_context }}" | base64 -d > build_context.tar.gz
+          mkdir -p build_context
+          tar -xzf build_context.tar.gz -C build_context
+          ls -la build_context/
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: build_context
+          platforms: linux/amd64
+          push: true
+          tags: ${{ github.event.inputs.image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Notify deployment service
+        run: |
+          echo "Build completed for deployment ${{ github.event.inputs.deployment_id }}"
+          # Optional: Send webhook back to deployment service
+          # curl -X POST ${{ secrets.DEPLOYMENT_WEBHOOK_URL }}/build-complete \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"deployment_id": "${{ github.event.inputs.deployment_id }}", "status": "success", "image": "${{ github.event.inputs.image_tag }}"}'

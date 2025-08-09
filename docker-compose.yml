@@ -18,6 +18,13 @@ services:
     extends:
       file: agent_deployment_service/docker-compose.dev.yml
       service: agent_deployment_service_dev
+    volumes:
+      # Gives container control of Docker engine
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Gives container gcloud credentials
+      - ~/.config/gcloud:/root/.config/gcloud
+      # Gives container Docker's authentication config, allowing it to push to GCR
+      - ~/.docker:/root/.docker
 
   # nl_agents_service:
   #   extends:

@@ -13,15 +13,13 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_deployment_service.crud import deployments as crud
-from agent_deployment_service.db import get_db
-from agent_deployment_service.dependencies.user_deps import get_current_user_id
-from agent_deployment_service.logging_config import logger
-from agent_deployment_service.schemas.common import PaginatedResponse
-from agent_deployment_service.schemas.deployment_schemas import (
-    DeploymentCreate,
-    DeploymentResponse,
-)
+from ..crud import deployments as crud
+from ..db import get_db
+from ..dependencies.user_deps import get_current_user_id
+from ..logging_config import logger
+from ..schemas.common import PaginatedResponse
+from ..schemas.deployment_schemas import DeploymentCreate, DeploymentResponse
+from ..services import orchestration_service
 
 # Initialize the router
 router = APIRouter(
@@ -56,16 +54,9 @@ async def create_deployment(
     # Create the initial deployment record in the database
     deployment = await crud.create_deployment(db, deployment_data, user_id)
 
-    # TODO: Implement the actual asynchronous deployment logic here.
-    # This background task would be responsible for:
-    # 1. Pulling the agent configuration from the agent_management_service.
-    # 2. Building a Docker image for the agent runtime.
-    # 3. Pushing the image to a container registry.
-    # 4. Deploying the image to the cluster (e.g., Kubernetes).
-    # 5. Updating the deployment record's status to 'running' or 'failed'.
-    #
-    # from ..services import orchestration_service
-    # background_tasks.add_task(orchestration_service.start_deployment_process, deployment.id)
+    background_tasks.add_task(
+        orchestration_service.start_deployment_process, deployment.id
+    )
 
     logger.info(f"Deployment process initiated for deployment ID: {deployment.id}")
 
@@ -141,15 +132,12 @@ async def delete_deployment(
     Initiates the termination of a running agent and deletes its deployment record.
     This process is also asynchronous.
     """
-    # This CRUD call also serves as an ownership check
+    # This CRUD call also serves as an ownership check to ensure the user can delete it
     await crud.get_deployment(db, deployment_id, user_id)
 
-    # TODO: Trigger the asynchronous undeploy logic here.
-    # This background task would connect to the orchestration platform (e.g., Kubernetes)
-    # and delete the running agent service/pod.
-    #
-    # from ..services import orchestration_service
-    # background_tasks.add_task(orchestration_service.start_undeploy_process, deployment.id)
+    background_tasks.add_task(
+        orchestration_service.start_undeploy_process, deployment_id
+    )
 
     # Delete the record from our database
     await crud.delete_deployment(db, deployment_id, user_id)
