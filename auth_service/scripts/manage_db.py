@@ -165,12 +165,27 @@ async def bootstrap_service():
     await session.execute(text("SET search_path TO auth_service_data, public"))
 
     try:
-        logger.info("Verifying table access before bootstrap...")
-        roles_check = await session.execute(
-            text("SELECT count(*) FROM auth_service_data.roles")
+        logger.info("Checking if tables exist before bootstrap...")
+        # Check if the roles table exists first
+        table_check = await session.execute(
+            text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'auth_service_data' 
+                    AND table_name = 'roles'
+                )
+            """)
         )
-        roles_count = roles_check.scalar()
-        logger.info(f"Found {roles_count} rows in roles table")
+        table_exists = table_check.scalar()
+        
+        if table_exists:
+            roles_check = await session.execute(
+                text("SELECT count(*) FROM auth_service_data.roles")
+            )
+            roles_count = roles_check.scalar()
+            logger.info(f"Found {roles_count} rows in roles table")
+        else:
+            logger.info("Roles table does not exist yet. Will be created by migrations.")
 
         # Now run bootstrap with the verified connection
         await run_bootstrap(session)
@@ -263,16 +278,19 @@ async def check_initialization_status(db_params: Dict) -> bool:
         logger.info(f"Database '{db_params['dbname']}' exists.")
 
         # Check if core tables exist
-        role_check = subprocess.run(
-            f"psql {conn_str} -c 'SELECT COUNT(*) FROM auth_service_data.roles'",
+        table_check = subprocess.run(
+            f"psql {conn_str} -c \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth_service_data' AND table_name = 'roles')\"",
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-        if role_check.returncode == 0 and "count" in role_check.stdout.lower():
+        if table_check.returncode == 0 and "t" in table_check.stdout:
             logger.info("Core tables exist and are accessible.")
             return True
+        else:
+            logger.info("Core tables don't exist yet. Will be created by migrations.")
+            return False
     except Exception as e:
         logger.warning(f"Initialization check failed: {e}")
         return False

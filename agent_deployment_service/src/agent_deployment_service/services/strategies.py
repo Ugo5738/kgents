@@ -279,81 +279,92 @@ class KubernetesStrategy(DeploymentStrategy):
 
 class CloudBuildStrategy:
     """Build strategy using Google Cloud Build."""
-    
+
     async def trigger_workflow(
         self, deployment_id: str, image_tag: str, build_context_path: str
     ) -> str:
         """Trigger Cloud Build and return build ID."""
         logger.info(f"[CloudBuild:{deployment_id}] Submitting build for {image_tag}")
-        
+
         # Create tarball of build context
-        with tempfile.NamedTemporaryFile(suffix='.tar.gz', delete=False) as tar_file:
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tar_file:
             tar_path = tar_file.name
-            with tarfile.open(tar_path, 'w:gz') as tar:
-                tar.add(build_context_path, arcname='.')
-        
+            with tarfile.open(tar_path, "w:gz") as tar:
+                tar.add(build_context_path, arcname=".")
+
         try:
             # Submit to Cloud Build
             cloud_build_cmd = [
-                "gcloud", "builds", "submit",
-                "--tag", image_tag,
-                "--project", settings.GCP_PROJECT_ID,
-                "--timeout", "20m",
-                "--machine-type", "n1-highcpu-8",
+                "gcloud",
+                "builds",
+                "submit",
+                "--tag",
+                image_tag,
+                "--project",
+                settings.GCP_PROJECT_ID,
+                "--timeout",
+                "20m",
+                "--machine-type",
+                "n1-highcpu-8",
                 "--async",  # Return immediately with build ID
-                "--format", "value(id)",
-                tar_path
+                "--format",
+                "value(id)",
+                tar_path,
             ]
-            
+
             result = subprocess.run(
                 cloud_build_cmd,
                 capture_output=True,
                 text=True,
                 check=True,
-                env=os.environ.copy()
+                env=os.environ.copy(),
             )
-            
+
             build_id = result.stdout.strip()
-            logger.info(f"[CloudBuild:{deployment_id}] Build submitted with ID: {build_id}")
+            logger.info(
+                f"[CloudBuild:{deployment_id}] Build submitted with ID: {build_id}"
+            )
             return build_id
-            
+
         finally:
             # Clean up tar file
             if os.path.exists(tar_path):
                 os.unlink(tar_path)
-    
+
     async def wait_for_build(
         self, run_id: str, deployment_id: str, timeout: int = 600
     ) -> bool:
         """Wait for Cloud Build completion."""
         logger.info(f"[CloudBuild:{deployment_id}] Waiting for build {run_id}")
-        
+
         # Poll Cloud Build status
         check_cmd = [
-            "gcloud", "builds", "describe", run_id,
-            "--project", settings.GCP_PROJECT_ID,
-            "--format", "value(status)"
+            "gcloud",
+            "builds",
+            "describe",
+            run_id,
+            "--project",
+            settings.GCP_PROJECT_ID,
+            "--format",
+            "value(status)",
         ]
-        
+
         start_time = time.time()
         while time.time() - start_time < timeout:
             result = subprocess.run(
-                check_cmd,
-                capture_output=True,
-                text=True,
-                env=os.environ.copy()
+                check_cmd, capture_output=True, text=True, env=os.environ.copy()
             )
-            
+
             status = result.stdout.strip()
             logger.info(f"[CloudBuild:{deployment_id}] Build status: {status}")
-            
+
             if status == "SUCCESS":
                 return True
             elif status in ["FAILURE", "TIMEOUT", "CANCELLED"]:
                 raise RuntimeError(f"Cloud Build failed with status: {status}")
-            
+
             await asyncio.sleep(10)
-        
+
         raise TimeoutError(f"Cloud Build timed out after {timeout} seconds")
 
 
@@ -361,9 +372,9 @@ class GitHubActionsStrategy(DeploymentStrategy):
     """Build strategy using GitHub Actions for free cross-platform builds."""
 
     def __init__(self):
-        self.github_token = os.environ.get("GITHUB_TOKEN")
-        self.github_owner = os.environ.get("GITHUB_OWNER", "your-github-username")
-        self.github_repo = os.environ.get("GITHUB_REPO", "kgents")
+        self.github_token = settings.GITHUB_TOKEN
+        self.github_owner = settings.GITHUB_OWNER
+        self.github_repo = settings.GITHUB_REPO
 
         if not self.github_token:
             logger.warning(

@@ -15,24 +15,28 @@ dependencies = [
   # Core web framework
   "fastapi>=0.111.0,<1.0.0",
   "uvicorn[standard]>=0.30.1,<1.0.0",
-
-  # Settings and data validation (with email support)
-  "pydantic[email]>=2.5.0,<3.0.0",
-  "pydantic-settings>=2.3.4,<3.0.0",
-
-  # Database (switched to psycopg3 for consistency and modern features)
+  
+  # Settings and data validation
+  "pydantic[email]>=2.7.0,<3.0.0",
+  "pydantic-settings>=2.3.0,<3.0.0",
+  
+  # Database
   "sqlalchemy[asyncio]>=2.0.31,<3.0.0",
-  "psycopg[binary,pool]>=3.1.8,<4.0.0", # Replaced asyncpg
+  "psycopg[binary,pool]>=3.1.19,<4.0.0",
   "alembic>=1.13.1,<2.0.0",
-
+  
   # Security and Authentication
   "python-jose[cryptography]>=3.3.0,<4.0.0",
-  "passlib[bcrypt]>=1.7.4,<2.0.0",
-
-  # External Services and Utilities
   "supabase[async]>=2.5.0,<3.0.0", # Switched to the official async client
+  "passlib[bcrypt]>=1.7.4,<2.0.0", # For password hashing
+  
+  # External Services and Utilities
+  "httpx>=0.27.0,<1.0.0",
   "fastapi-limiter>=0.1.6,<1.0.0",
   "slowapi>=0.1.9,<1.0.0", # Required for rate limiting
+  
+  # Development tools
+  "black>=24.0.0"
 ]
 
 [project.optional-dependencies]

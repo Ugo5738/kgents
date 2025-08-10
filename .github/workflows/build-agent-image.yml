@@ -60,6 +60,35 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
+      - name: Deploy to Cloud Run
+        run: |
+          SERVICE_NAME="agent-runtime-${{ github.event.inputs.deployment_id }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          
+          # Extract project ID from image tag (format: us-central1-docker.pkg.dev/PROJECT_ID/...)
+          PROJECT_ID=$(echo "$IMAGE_TAG" | cut -d'/' -f3)
+          
+          echo "Deploying service: $SERVICE_NAME"
+          echo "Using image: $IMAGE_TAG"
+          echo "Project ID: $PROJECT_ID"
+          
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE_TAG" \
+            --platform managed \
+            --region us-central1 \
+            --port 8080 \
+            --allow-unauthenticated \
+            --project "$PROJECT_ID" \
+            --set-env-vars "LANGFLOW_BACKEND_ONLY=true,LANGFLOW_OPEN_BROWSER=false,LANGFLOW_HOST=0.0.0.0" \
+            --timeout 900 \
+            --memory 1Gi \
+            --cpu 1 \
+            --max-instances 1 \
+            --format json > deployment.json
+          
+          echo "Deployment completed successfully!"
+          echo "Service URL: $(jq -r '.status.url' deployment.json)"
+      
       - name: Notify deployment service
         run: |
           echo "Build completed for deployment ${{ github.event.inputs.deployment_id }}"

@@ -22,6 +22,10 @@ sys.path.insert(0, str(service_dir / "src"))
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from agent_deployment_service.bootstrap import run_bootstrap
 
 # --- Logging and Helpers ---
 logging.basicConfig(
@@ -136,11 +140,19 @@ def reset_migrations():
     logger.info(colored("Migration history has been reset.", "green"))
 
 
-# Placeholder for future bootstrap logic
 async def bootstrap_service():
-    logger.info("Running service data bootstrap for agent_deployment_service...")
-    # Add any data seeding logic here if needed in the future
-    logger.info(colored("Bootstrap complete (no-op for now).", "green"))
+    """Run the bootstrap process to set up M2M credentials."""
+    logger.info("Running bootstrap process...")
+    try:
+        success = await run_bootstrap()
+        if success:
+            logger.info("Bootstrap process completed successfully.")
+        else:
+            logger.warning("Bootstrap process completed with warnings.")
+        return success
+    except Exception as e:
+        logger.error(f"Bootstrap process failed: {e}")
+        return False
 
 
 async def recreate_environment(db_params: Dict):
@@ -174,11 +186,80 @@ async def recreate_environment(db_params: Dict):
     # Verify the tables were created before bootstrapping
     logger.info("--- Verifying database schema before bootstrap ---")
     run_command(
-        f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {db_params['dbname']} -c '\\dt auth_service_data.*'"
+        f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {db_params['dbname']} -c '\\dt public.*'"
     )
+    
+    # Run bootstrap after recreating
+    await bootstrap_service()
 
 
 # --- Main Command Orchestrator ---
+async def check_initialization_status(db_params: Dict) -> bool:
+    """Check if the database has been initialized."""
+    try:
+        conn_str = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
+        
+        # Check if database exists
+        subprocess.run(
+            f"psql -c 'SELECT 1' {conn_str}",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"Database '{db_params['dbname']}' exists.")
+        
+        # Check if core tables exist
+        table_check = subprocess.run(
+            f'psql {conn_str} -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = \'deployments\')"',
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if table_check.returncode == 0 and "t" in table_check.stdout:
+            logger.info("Core tables exist and are accessible.")
+            return True
+        else:
+            logger.info("Core tables don't exist yet. Will be created by migrations.")
+            return False
+    except Exception as e:
+        logger.warning(f"Initialization check failed: {e}")
+        return False
+    
+    return False
+
+
+async def init_service(db_params: Dict):
+    """Initialize the service if needed, or do nothing if already initialized."""
+    logger.info("Checking if deployment service is already initialized...")
+    
+    is_initialized = await check_initialization_status(db_params)
+    
+    if is_initialized:
+        logger.info(
+            colored(
+                "Deployment service is already initialized. Running bootstrap to ensure M2M credentials...", "green"
+            )
+        )
+        # Still run bootstrap to ensure M2M credentials are set up
+        await bootstrap_service()
+        return
+    
+    logger.info("Deployment service needs initialization. Running setup...")
+    
+    # Create database if it doesn't exist
+    create_db(db_params)
+    
+    # Run migrations
+    run_command("alembic upgrade head")
+    
+    # Run the bootstrap process after migrations
+    await bootstrap_service()
+    
+    logger.info(colored("Deployment service initialization completed successfully.", "green"))
+
+
 async def main():
     dotenv_path = service_dir / ".env.dev"
     if dotenv_path.exists():
@@ -234,8 +315,7 @@ async def main():
 
     try:
         if args.command == "init":
-            create_db(db_params)
-            run_command("alembic upgrade head")
+            await init_service(db_params)
         elif args.command == "recreate":
             await recreate_environment(db_params)
         elif args.command == "delete-db":

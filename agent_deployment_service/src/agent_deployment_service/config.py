@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     )
     GITHUB_TOKEN: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_TOKEN")
     GITHUB_OWNER: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_OWNER")
-    GITHUB_REPO: str = Field(..., alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_REPO")
+    GITHUB_REPO: str = Field("kgents", alias="AGENT_DEPLOYMENT_SERVICE_GITHUB_REPO")
 
     # --- LANGFLOW SETTINGS ---
     LANGFLOW_API_URL: str = Field(

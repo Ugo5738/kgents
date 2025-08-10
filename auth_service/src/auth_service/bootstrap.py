@@ -68,6 +68,13 @@ ROLE_PERMISSIONS_MAP = {
 async def create_core_roles(db: AsyncSession) -> Dict[str, uuid.UUID]:
     """Create the core roles if they don't exist yet."""
     role_ids = {}
+    
+    # Check if roles table exists
+    try:
+        await db.execute(select(Role).limit(1))
+    except Exception as e:
+        logger.warning(f"Roles table does not exist yet. Skipping role creation: {e}")
+        return role_ids
 
     for role_name, role_description in CORE_ROLES.items():
         # Check if role already exists
@@ -97,6 +104,13 @@ async def create_core_roles(db: AsyncSession) -> Dict[str, uuid.UUID]:
 async def create_core_permissions(db: AsyncSession) -> Dict[str, uuid.UUID]:
     """Create the core permissions if they don't exist yet."""
     permission_ids = {}
+    
+    # Check if permissions table exists
+    try:
+        await db.execute(select(Permission).limit(1))
+    except Exception as e:
+        logger.warning(f"Permissions table does not exist yet. Skipping permission creation: {e}")
+        return permission_ids
 
     for perm_data in CORE_PERMISSIONS:
         # Check if permission already exists
