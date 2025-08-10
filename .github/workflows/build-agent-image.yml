@@ -61,12 +61,19 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Deploy to Cloud Run
+        if: success()
         run: |
-          SERVICE_NAME="agent-runtime-${{ github.event.inputs.deployment_id }}"
+          SERVICE_NAME="${{ github.event.inputs.service_name }}"
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
           
-          # Extract project ID from image tag (format: us-central1-docker.pkg.dev/PROJECT_ID/...)
-          PROJECT_ID=$(echo "$IMAGE_TAG" | cut -d'/' -f3)
+          # Extract project ID correctly (it's always 'kgents' in our case)
+          # Image format: us-central1-docker.pkg.dev/kgents/kgents-images/agent-runtime-xxx:latest
+          PROJECT_ID="kgents"
+          
+          # Extract service name from image tag if not provided
+          if [ -z "$SERVICE_NAME" ]; then
+            SERVICE_NAME=$(echo "$IMAGE_TAG" | cut -d'/' -f4 | cut -d':' -f1)
+          fi
           
           echo "Deploying service: $SERVICE_NAME"
           echo "Using image: $IMAGE_TAG"
