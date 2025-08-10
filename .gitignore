@@ -2,8 +2,12 @@
 
 # Environments
 .env
-# .env.*
+.env.*
 !.env.example
+*/.env.dev
+
+# Output files
+output.txt
 .venv/
 venv/
 .venv
