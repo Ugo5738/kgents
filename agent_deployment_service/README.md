@@ -202,6 +202,89 @@ GET /deployments/{deployment_id}/status
 }
 ```
 
+## Post-Deploy Verification (Langflow Runtime)
+
+Use these steps to validate a deployed Langflow runtime (Cloud Run) and run a simple flow.
+
+### Service readiness
+
+- GET `${LANGFLOW_URL}/health` → expect `{ "status": "ok" }`
+- GET `${LANGFLOW_URL}/api/v1/version` → expect Langflow version (e.g., `1.0.0a42`)
+- `${LANGFLOW_URL}/openapi.json` and `${LANGFLOW_URL}/docs` should be accessible
+
+```bash
+# Example (set to your Cloud Run URL)
+LANGFLOW_URL="https://your-cloud-run-url.run.app"
+
+curl -sS "$LANGFLOW_URL/health"
+curl -sS "$LANGFLOW_URL/api/v1/version"
+```
+
+### Authentication
+
+If `LANGFLOW_AUTO_LOGIN=True` (useful for dev/test), you can mint a Bearer token:
+
+```bash
+TOKEN=$(curl -sS "$LANGFLOW_URL/api/v1/auto_login" | jq -r .access_token)
+echo "$TOKEN" | head -c 16; echo
+```
+
+List flows using the Bearer token:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "$LANGFLOW_URL/api/v1/flows/"
+```
+
+Create an API key (copy the unmasked key from the response):
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"ci-run"}' \
+  "$LANGFLOW_URL/api/v1/api_key/"
+```
+
+Run a flow using the API key (replace FLOW_ID and API_KEY):
+
+```bash
+FLOW_ID="00000000-0000-0000-0000-000000000000"   # replace with a real flow ID
+API_KEY="paste-your-api-key"
+
+curl -sS -X POST \
+  "$LANGFLOW_URL/api/v1/run/$FLOW_ID?stream=false" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $API_KEY" \
+  -d '{
+        "input_value": "Hello",
+        "input_type": "chat",
+        "output_type": "chat"
+      }'
+```
+
+Notes:
+- If the flows list is empty, create or upload a flow via `POST /api/v1/flows/` or `POST /api/v1/flows/upload/`.
+- The flows API paths typically include a trailing slash (e.g., `/api/v1/flows/`).
+
+### CI/CD smoke tests (recommended)
+
+Run after each deploy to Cloud Run:
+
+```bash
+set -euo pipefail
+LANGFLOW_URL="https://your-cloud-run-url.run.app"
+
+curl -fsS "$LANGFLOW_URL/health" >/dev/null
+curl -fsS "$LANGFLOW_URL/api/v1/version" | jq -e '.version | length > 0' >/dev/null
+```
+
+### Security
+
+- Disable `LANGFLOW_AUTO_LOGIN` in production; manage users and API keys explicitly.
+- Never expose Langflow without auth; prefer a gateway and per-environment API keys.
+- Ensure the container listens on port `8080` for Cloud Run.
+
 ## Troubleshooting
 
 ### Common Issues

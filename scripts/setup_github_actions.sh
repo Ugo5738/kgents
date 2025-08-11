@@ -51,6 +51,20 @@ gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
     --role="roles/artifactregistry.writer" \
     --quiet
 
+# Allow GitHub Actions SA to manage Cloud Run services
+gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
+    --member="serviceAccount:${SERVICE_ACCOUNT}" \
+    --role="roles/run.admin" \
+    --quiet
+
+# Allow deployer SA to act as the runtime service account (default compute SA)
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+echo "Granting Service Account User on runtime SA: ${COMPUTE_SA}"
+gcloud iam service-accounts add-iam-policy-binding "${COMPUTE_SA}" \
+    --member="serviceAccount:${SERVICE_ACCOUNT}" \
+    --role="roles/iam.serviceAccountUser" \
+    --quiet
+
 # Step 3: Create Workload Identity Pool
 echo ""
 echo "🏊 Step 3: Creating Workload Identity Pool..."

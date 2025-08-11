@@ -27,6 +27,22 @@ def get_current_user_token_data(token: str = Depends(oauth2_scheme)) -> UserToke
 
     payload = None
 
+    # Some clients accidentally pass "Bearer <JWT>" as the token value, which results
+    # in "Authorization: Bearer Bearer <JWT>". OAuth2PasswordBearer will then provide
+    # a token string like "Bearer <JWT>", which breaks JWT decoding ("Not enough segments").
+    # Be tolerant by stripping common prefixes and surrounding quotes.
+    if isinstance(token, str):
+        raw = token.strip()
+        # Remove surrounding quotes if present
+        if (raw.startswith("\"") and raw.endswith("\"")) or (
+            raw.startswith("'") and raw.endswith("'")
+        ):
+            raw = raw[1:-1].strip()
+        # Strip an accidental leading "Bearer "
+        if raw.lower().startswith("bearer "):
+            raw = raw.split(" ", 1)[1].strip()
+        token = raw
+
     try:
         # Decode the JWT. This function checks the signature, expiration,
         # audience, and issuer all at once.

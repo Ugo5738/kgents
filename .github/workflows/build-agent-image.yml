@@ -1,4 +1,5 @@
 name: Build Agent Docker Image
+run-name: "Agent Deploy ${{ github.event.inputs.deployment_id }}"
 
 on:
   workflow_dispatch:
@@ -15,6 +16,14 @@ on:
         description: 'Base64 encoded tar.gz of build context'
         required: true
         type: string
+      build_context_url:
+        description: 'Optional HTTPS URL to a tar.gz build context (preferred for large contexts)'
+        required: false
+        type: string
+      service_name:
+        description: 'Cloud Run service name (optional)'
+        required: false
+        type: string
 
 jobs:
   build-and-push:
@@ -29,7 +38,24 @@ jobs:
       
       - name: Extract build context
         run: |
-          echo "${{ github.event.inputs.build_context }}" | base64 -d > build_context.tar.gz
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.build_context_url }}" ]; then
+            echo "Downloading build context from URL..."
+            URL="${{ github.event.inputs.build_context_url }}"
+            # Add GitHub auth headers only for GitHub domains
+            if echo "$URL" | grep -Eq '^https://(api\.github\.com|uploads\.github\.com|raw\.githubusercontent\.com|github\.com)/'; then
+              echo "Using GitHub token for authenticated download"
+              curl -fL --retry 3 --retry-delay 2 \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/octet-stream" \
+                "$URL" -o build_context.tar.gz
+            else
+              curl -fL --retry 3 --retry-delay 2 "$URL" -o build_context.tar.gz
+            fi
+          else
+            echo "Decoding base64 build context from input..."
+            echo "${{ github.event.inputs.build_context }}" | base64 -d > build_context.tar.gz
+          fi
           mkdir -p build_context
           tar -xzf build_context.tar.gz -C build_context
           ls -la build_context/

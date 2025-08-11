@@ -61,7 +61,11 @@ async def create_tool(db: AsyncSession, tool_data: ToolCreate, owner_id: UUID) -
             )
 
     # Create new tool with owner_id
-    tool_dict = tool_data.model_dump()
+    tool_dict = tool_data.model_dump(exclude_unset=True)
+    # Map schema field 'metadata' to ORM attribute 'metadata_json'
+    if "metadata" in tool_dict:
+        tool_dict["metadata_json"] = tool_dict.pop("metadata")
+
     tool = Tool(owner_id=owner_id, **tool_dict)
 
     db.add(tool)
@@ -269,6 +273,10 @@ async def update_tool(
 
     # Update fields
     update_data = tool_data.model_dump(exclude_unset=True)
+    # Map schema field 'metadata' to ORM attribute 'metadata_json'
+    if "metadata" in update_data:
+        update_data["metadata_json"] = update_data.pop("metadata")
+
     for key, value in update_data.items():
         setattr(tool, key, value)
 

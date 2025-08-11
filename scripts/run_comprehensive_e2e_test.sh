@@ -367,7 +367,7 @@ INTERVAL=10
 DEPLOYMENT_SUCCESS=false
 
 while [ $ELAPSED -lt $MAX_WAIT ]; do
-    DEPLOYMENT_STATUS=$(make_request "GET" "$DEPLOYMENT_URL/deployments/$DEPLOYMENT_ID" "" "Bearer $ADMIN_TOKEN" | jq -r '.status // "unknown"')
+    DEPLOYMENT_STATUS=$(make_request "GET" "$DEPLOYMENT_URL/deployments/$DEPLOYMENT_ID" "" "$ADMIN_TOKEN" | jq -r '.status // "unknown"')
     
     case "$DEPLOYMENT_STATUS" in
         "running")

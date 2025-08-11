@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from tool_registry_service.models.tool import ExecutionEnvironment, ToolType
 
@@ -114,7 +114,11 @@ class ToolCreate(ToolBase):
     )
 
     metadata: Optional[Dict[str, Any]] = Field(
-        None, description="Additional tool metadata"
+        None,
+        alias="metadata_json",
+        validation_alias=AliasChoices("metadata_json", "metadata"),
+        serialization_alias="metadata",
+        description="Additional tool metadata",
     )
 
     @model_validator(mode="after")
@@ -169,7 +173,12 @@ class ToolUpdate(BaseModel):
 
     examples: Optional[Dict[str, Any]] = Field(None)
     documentation_url: Optional[str] = Field(None)
-    metadata: Optional[Dict[str, Any]] = Field(None)
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        alias="metadata_json",
+        validation_alias=AliasChoices("metadata_json", "metadata"),
+        serialization_alias="metadata",
+    )
 
     is_deprecated: Optional[bool] = Field(None)
 
@@ -192,7 +201,10 @@ class ToolResponse(ToolBase):
     is_deprecated: bool = Field(..., description="Whether the tool is deprecated")
 
     metadata: Optional[Dict[str, Any]] = Field(
-        {}, description="Additional tool metadata"
+        default_factory=dict,
+        alias="metadata_json",
+        serialization_alias="metadata",
+        description="Additional tool metadata",
     )
 
     category: Optional[ToolCategoryResponse] = Field(None, description="Tool category")

@@ -54,6 +54,8 @@ python scripts/manage_db.py delete-db
 
 ```bash
 python scripts/manage_db.py create-migration -m "Your descriptive message"
+
+docker compose run --rm --entrypoint "" agent_management_service alembic revision --autogenerate -m "Your descriptive message"
 ```
 
 **Description:** Scans your SQLAlchemy models for changes and automatically generates a new Alembic migration file in the `alembic/versions` directory.

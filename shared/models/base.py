@@ -46,4 +46,6 @@ class OwnershipMixin:
 class MetadataMixin:
     """Mixin to provide a JSON metadata column for models."""
 
-    metadata = Column(JSON, nullable=True, default=dict)
+    # Use a Python attribute name that doesn't collide with SQLAlchemy's Base.metadata
+    # Keep the underlying DB column name as 'metadata' for compatibility.
+    metadata_json = Column("metadata", JSON, nullable=True, default=dict)
