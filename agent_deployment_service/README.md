@@ -279,6 +279,22 @@ curl -fsS "$LANGFLOW_URL/health" >/dev/null
 curl -fsS "$LANGFLOW_URL/api/v1/version" | jq -e '.version | length > 0' >/dev/null
 ```
 
+### Artifact Registry verification
+
+If a deploy fails with "image not found" or to manually confirm the image exists in GAR, run:
+
+```bash
+gcloud artifacts docker images list \
+  us-central1-docker.pkg.dev/kgents/kgents-images \
+  --include-tags \
+  --filter="package:agent-runtime-<deployment_id>"
+
+gcloud artifacts docker images describe \
+  us-central1-docker.pkg.dev/kgents/kgents-images/agent-runtime-<deployment_id>:latest \
+  --project kgents \
+  --location us-central1
+```
+
 ### Security
 
 - Disable `LANGFLOW_AUTO_LOGIN` in production; manage users and API keys explicitly.

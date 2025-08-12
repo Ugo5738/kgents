@@ -85,6 +85,24 @@ jobs:
           tags: ${{ github.event.inputs.image_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify image exists in Artifact Registry
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          PROJECT_ID="kgents"
+          REGION="us-central1"
+          echo "Verifying image exists: $IMAGE_TAG"
+          for i in 1 2 3 4 5; do
+            if gcloud artifacts docker images describe "$IMAGE_TAG" --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
+              echo "Image found in GAR."
+              exit 0
+            fi
+            echo "Image not found yet, retrying in 5s... ($i/5)"
+            sleep 5
+          done
+          echo "Image not found in GAR after retries"
+          exit 1
       
       - name: Deploy to Cloud Run
         if: success()

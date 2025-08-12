@@ -1,5 +1,6 @@
 # agent_deployment_service/src/agent_deployment_service/services/orchestration_service.py
 import asyncio
+import time
 import json
 import os
 import subprocess
@@ -38,6 +39,61 @@ except docker.errors.DockerException:
 template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
 jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
+
+async def _wait_for_cloud_run_service(
+    service_name: str,
+    *,
+    project_id: str,
+    region: str,
+    timeout: int = 600,
+) -> tuple[Optional[str], dict]:
+    """Poll Cloud Run for a service URL until it's Ready or timeout.
+
+    Returns (endpoint_url, metadata) when ready; (None, {}) on timeout.
+    """
+    start = time.time()
+    last_error: Optional[str] = None
+    while time.time() - start < timeout:
+        cmd = [
+            "gcloud",
+            "run",
+            "services",
+            "describe",
+            service_name,
+            "--project",
+            project_id,
+            "--region",
+            region,
+            "--format=json",
+        ]
+        try:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            data = json.loads(result.stdout)
+            status = data.get("status", {})
+            url = status.get("url")
+            ready = None
+            for cond in status.get("conditions", []) or []:
+                if cond.get("type") == "Ready":
+                    ready = cond.get("status")
+                    break
+            if url and ready == "True":
+                metadata = {
+                    "service_name": service_name,
+                    "region": region,
+                    "revision": status.get("latestReadyRevisionName")
+                    or status.get("latestCreatedRevisionName"),
+                }
+                return url, metadata
+        except subprocess.CalledProcessError as e:
+            # Capture the error but keep polling; service may not exist yet
+            last_error = e.stderr or e.stdout
+        await asyncio.sleep(10)
+
+    if last_error:
+        logger.warning(
+            f"[CloudRun:{service_name}] Timeout waiting for service readiness. Last error: {last_error}"
+        )
+    return None, {}
 
 async def get_deployment_status(deployment_id: UUID) -> dict:
     """Fetch the current deployment status and metadata from the database.
@@ -260,12 +316,33 @@ async def start_deployment_process(deployment_id: UUID):
             else:
                 logger.info(f"[Deployment:{deployment_id}] Image already pushed via buildx.")
 
-            # 6. Use the selected strategy to deploy
-            strategy = get_deployment_strategy(settings.DEPLOYMENT_STRATEGY)
-            logger.info(
-                f"[Deployment:{deployment_id}] Using deployment strategy: {strategy.__class__.__name__}"
+            # 6. Deploy
+            # If we built via GitHub Actions for Cloud Run, deployment happens in GitHub Actions.
+            gh_build_for_cloud_run = (
+                build_strategy == "github_actions"
+                and settings.DEPLOYMENT_STRATEGY.lower() == "cloud_run"
             )
-            endpoint_url, metadata = await strategy.deploy(deployment_id, image_tag)
+            if gh_build_for_cloud_run:
+                service_name = f"agent-runtime-{str(deployment_id).lower()}"
+                logger.info(
+                    f"[Deployment:{deployment_id}] Skipping local Cloud Run deploy; GitHub Actions will deploy. Polling for service readiness: {service_name}"
+                )
+                endpoint_url, metadata = await _wait_for_cloud_run_service(
+                    service_name,
+                    project_id=settings.GCP_PROJECT_ID,
+                    region=settings.GCP_REGION,
+                    timeout=600,
+                )
+                if not endpoint_url:
+                    raise RuntimeError(
+                        f"Timed out waiting for Cloud Run service {service_name} to become ready"
+                    )
+            else:
+                strategy = get_deployment_strategy(settings.DEPLOYMENT_STRATEGY)
+                logger.info(
+                    f"[Deployment:{deployment_id}] Using deployment strategy: {strategy.__class__.__name__}"
+                )
+                endpoint_url, metadata = await strategy.deploy(deployment_id, image_tag)
 
             # 7. Update status to RUNNING
             await update_deployment_status(
