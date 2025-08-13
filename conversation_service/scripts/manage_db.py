@@ -1,33 +1,29 @@
 #!/usr/bin/env python
-# agent_deployment_service/scripts/manage_db.py
+# conversation_service/scripts/manage_db.py
 
 """
-Database management CLI for the Agent Deployment Service.
+Database management CLI for the Conversation Service.
 - Creates DB if missing
 - Runs Alembic migrations
+- Bootstraps M2M credentials via auth_service
 """
+
 import argparse
 import asyncio
 import logging
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Dict
 
 # --- Path Setup ---
-# Ensures the script can find all necessary project modules
 service_dir = Path(__file__).parent.parent.absolute()
 project_root = service_dir.parent
 sys.path.insert(0, str(service_dir / "src"))
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from agent_deployment_service.bootstrap import run_bootstrap
 
 # --- Logging and Helpers ---
 logging.basicConfig(
@@ -37,7 +33,6 @@ logger = logging.getLogger("manage_db")
 
 
 def colored(text: str, color: str) -> str:
-    """Applies ANSI color codes to text for better terminal output."""
     colors = {
         "red": "\033[91m",
         "green": "\033[92m",
@@ -89,9 +84,8 @@ def get_db_params_from_url(db_url: str) -> dict:
 
 
 def create_db(db_params: Dict):
-    """Creates the service-specific database if it doesn't exist."""
     db_name = db_params["dbname"]
-    admin_db_name = "postgres"  # Default DB to connect to for CREATE DATABASE
+    admin_db_name = "postgres"
     logger.info(
         f"Ensuring database '{db_name}' exists on host '{db_params['host']}'..."
     )
@@ -140,42 +134,37 @@ def reset_migrations():
     logger.info(colored("Migration history has been reset.", "green"))
 
 
-async def bootstrap_service():
-    """Run the bootstrap process to set up M2M credentials."""
-    logger.info("Running bootstrap process...")
-    try:
-        success = await run_bootstrap()
-        if success:
-            logger.info("Bootstrap process completed successfully.")
-        else:
-            logger.warning("Bootstrap process completed with warnings.")
-        return success
-    except Exception as e:
-        logger.error(f"Bootstrap process failed: {e}")
+def has_migrations() -> bool:
+    """Return True if there are migration scripts present (excluding __init__.py)."""
+    versions_dir = service_dir / "alembic" / "versions"
+    if not versions_dir.exists():
         return False
+    for item in versions_dir.glob("*.py"):
+        if item.name != "__init__.py":
+            return True
+    return False
+
+
+async def bootstrap_service():
+    """Run M2M client bootstrap for conversation_service."""
+    from conversation_service.bootstrap import run_bootstrap
+
+    logger.info("Running service bootstrap for conversation_service...")
+    try:
+        ok = await run_bootstrap()
+        if ok:
+            logger.info(colored("Bootstrap complete.", "green"))
+        else:
+            logger.warning(colored("Bootstrap reported failure.", "yellow"))
+    except Exception as e:
+        logger.error(colored(f"Bootstrap failed: {e}", "red"), exc_info=True)
 
 
 async def recreate_environment(db_params: Dict):
-    """
-    Stops, resets, and restarts the entire Supabase stack, then migrates and bootstraps the database.
-    This is the definitive way to get a clean slate.
-    """
-    logger.info("--- Recreating environment for Agent Deployment Service ---")
-    # logger.info("--- Stopping Supabase stack for a full reset ---")
-    # run_command("supabase stop --no-backup")
-    # logger.info(colored("Supabase stack stopped.", "green"))
-
-    # time.sleep(2)
-
-    # logger.info("--- Starting a fresh Supabase stack ---")
-    # run_command("supabase start")
-    # logger.info(colored("Fresh Supabase stack is running.", "green"))
-
-    # time.sleep(5)
+    logger.info("--- Recreating environment for Conversation Service ---")
 
     await delete_db(db_params)
 
-    # Create our application-specific database
     logger.info("--- Creating application database ---")
     create_db(db_params)
 
@@ -183,84 +172,7 @@ async def recreate_environment(db_params: Dict):
     run_command("alembic revision --autogenerate -m 'Initial schema'")
     run_command("alembic upgrade head")
 
-    # Verify the tables were created before bootstrapping
-    logger.info("--- Verifying database schema before bootstrap ---")
-    run_command(
-        f"psql -h {db_params['host']} -p {db_params['port']} -U {db_params['user']} -d {db_params['dbname']} -c '\\dt public.*'"
-    )
-
-    # Run bootstrap after recreating
     await bootstrap_service()
-
-
-# --- Main Command Orchestrator ---
-async def check_initialization_status(db_params: Dict) -> bool:
-    """Check if the database has been initialized."""
-    try:
-        conn_str = f"postgresql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
-
-        # Check if database exists
-        subprocess.run(
-            f"psql -c 'SELECT 1' {conn_str}",
-            shell=True,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        logger.info(f"Database '{db_params['dbname']}' exists.")
-
-        # Check if core tables exist
-        table_check = subprocess.run(
-            f"psql {conn_str} -c \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'deployments')\"",
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if table_check.returncode == 0 and "t" in table_check.stdout:
-            logger.info("Core tables exist and are accessible.")
-            return True
-        else:
-            logger.info("Core tables don't exist yet. Will be created by migrations.")
-            return False
-    except Exception as e:
-        logger.warning(f"Initialization check failed: {e}")
-        return False
-
-    return False
-
-
-async def init_service(db_params: Dict):
-    """Initialize the service if needed, or do nothing if already initialized."""
-    logger.info("Checking if deployment service is already initialized...")
-
-    is_initialized = await check_initialization_status(db_params)
-
-    if is_initialized:
-        logger.info(
-            colored(
-                "Deployment service is already initialized. Running bootstrap to ensure M2M credentials...",
-                "green",
-            )
-        )
-        # Still run bootstrap to ensure M2M credentials are set up
-        await bootstrap_service()
-        return
-
-    logger.info("Deployment service needs initialization. Running setup...")
-
-    # Create database if it doesn't exist
-    create_db(db_params)
-
-    # Run migrations
-    run_command("alembic upgrade head")
-
-    # Run the bootstrap process after migrations
-    await bootstrap_service()
-
-    logger.info(
-        colored("Deployment service initialization completed successfully.", "green")
-    )
 
 
 async def main():
@@ -273,7 +185,7 @@ async def main():
             f"{dotenv_path} not found. Relying on shell environment variables."
         )
 
-    from agent_deployment_service.config import settings
+    from conversation_service.config import settings
 
     parser = argparse.ArgumentParser(
         description=f"{settings.PROJECT_NAME} Database Management Tool"
@@ -286,7 +198,7 @@ async def main():
     subparsers.add_parser(
         "recreate", help="Deletes and then fully initializes the database."
     )
-    subparsers.add_parser("delete-db", help="Deletes the database entirely.")
+    subparsers.add_parser("delete-db", help="Drop the database for this service.")
     create_mig_parser = subparsers.add_parser(
         "create-migration", help="Create a new Alembic migration file."
     )
@@ -312,13 +224,17 @@ async def main():
 
     args = parser.parse_args()
 
-    # Set PGPASSWORD for psql and pg_dump commands
     db_params = get_db_params_from_url(str(settings.DATABASE_URL))
     os.environ["PGPASSWORD"] = db_params["password"]
 
     try:
         if args.command == "init":
-            await init_service(db_params)
+            create_db(db_params)
+            # Autogenerate initial migration if none exists yet
+            if not has_migrations():
+                run_command("alembic revision --autogenerate -m 'Initial schema'")
+            run_command("alembic upgrade head")
+            await bootstrap_service()
         elif args.command == "recreate":
             await recreate_environment(db_params)
         elif args.command == "delete-db":
@@ -330,7 +246,9 @@ async def main():
         elif args.command == "downgrade":
             run_command(f"alembic downgrade -{args.step}")
         elif args.command == "verify":
-            run_command("alembic check")
+            # Show current and heads to assist debugging state
+            run_command("alembic heads")
+            run_command("alembic current")
 
         print(colored("\nOperation completed successfully.", "green"))
 

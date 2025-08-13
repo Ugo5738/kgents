@@ -1,0 +1,139 @@
+import json
+import logging
+import sys
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from .config import Environment, settings
+
+# Configure logger
+logger = logging.getLogger("conversation_service")
+
+
+class RequestContext:
+    """Thread-local storage for request context such as request ID"""
+
+    _request_id: Optional[str] = None
+
+    @classmethod
+    def get_request_id(cls) -> Optional[str]:
+        return cls._request_id
+
+    @classmethod
+    def set_request_id(cls, request_id: str) -> None:
+        cls._request_id = request_id
+
+    @classmethod
+    def clear_request_id(cls) -> None:
+        cls._request_id = None
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        RequestContext.set_request_id(request_id)
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        RequestContext.clear_request_id()
+        return response
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+            "environment": str(settings.ENVIRONMENT.value),
+        }
+        if request_id := RequestContext.get_request_id():
+            log_record["request_id"] = request_id
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+        if hasattr(record, "extra") and record.extra:
+            log_record.update(record.extra)
+        return json.dumps(log_record)
+
+
+def setup_logging(app: FastAPI | None = None):
+    log_level = getattr(logging, settings.LOGGING_LEVEL)
+    root_logger = logging.getLogger()
+
+    for handler in root_logger.handlers[::]:
+        root_logger.removeHandler(handler)
+
+    if settings.ENVIRONMENT == Environment.PRODUCTION:
+        formatter = JsonFormatter()
+    else:
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        )
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    root_logger.setLevel(log_level)
+
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+    logger.info(
+        f"Logging configured with level {settings.LOGGING_LEVEL} "
+        f"and {'JSON' if settings.ENVIRONMENT == Environment.PRODUCTION else 'plain text'} format"
+    )
+
+
+def setup_middleware(app: FastAPI):
+    app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ALLOW_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(LoggingMiddleware)
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path in ["/health", "/internal/health"]:
+            return await call_next(request)
+
+        start_time = time.time()
+        request_id = RequestContext.get_request_id()
+
+        try:
+            response = await call_next(request)
+            duration_ms = (time.time() - start_time) * 1000
+
+            logger.info(
+                "Request processed",
+                extra={
+                    "request": {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "client_host": request.client.host if request.client else None,
+                        "request_id": request_id,
+                    },
+                    "response": {
+                        "status_code": response.status_code,
+                        "duration_ms": round(duration_ms, 2),
+                    },
+                },
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"Request failed: {e}", exc_info=True, extra={"request_id": request_id}
+            )
+            raise

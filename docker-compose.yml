@@ -26,12 +26,10 @@ services:
       # Gives container Docker's authentication config, allowing it to push to GCR
       - ~/.docker:/root/.docker
 
-  # nl_agents_service:
-  #   extends:
-  #     file: nl_agents_service/docker-compose.dev.yml
-  #     service: nl_agents_service_dev
-  #   ports:
-  #     - "8004:8000"
+  conversation_service:
+    extends:
+      file: conversation_service/docker-compose.dev.yml
+      service: conversation_service_dev
 
   # langflow_ide:
   #   image: langflowai/langflow:latest

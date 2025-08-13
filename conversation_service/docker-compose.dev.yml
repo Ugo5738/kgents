@@ -1,0 +1,29 @@
+# conversation_service/docker-compose.dev.yml
+services:
+  conversation_service_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8000"
+    volumes:
+      # Mount the service's source code for hot-reloading
+      - ./src:/app/src
+      # Mount the alembic directory for migration development
+      - ./alembic:/app/alembic
+      # Mount the shared code as an editable package
+      - ../shared:/shared
+      # Mount scripts for live updates
+      - ./scripts:/app/scripts
+    env_file:
+      - ./.env.dev # Load development environment variables
+    environment:
+      # Pass these variables to the container for the entrypoint script
+      - SERVICE_MODULE=conversation_service
+      - CONVERSATION_SERVICE_POSTGRES_HOST=supabase_db_kgents
+      - CONVERSATION_SERVICE_POSTGRES_PORT=5432
+      # Configure Python to find the shared package and auth_service module
+      - PYTHONPATH=/app/src:/app:/shared:$PYTHONPATH
+    networks:
+      - kgents_network
+      - supabase_network_kgents # Connect to Supabase network from root compose

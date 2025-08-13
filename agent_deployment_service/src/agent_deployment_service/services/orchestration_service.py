@@ -1,28 +1,23 @@
 # agent_deployment_service/src/agent_deployment_service/services/orchestration_service.py
 import asyncio
-import time
 import json
 import os
 import subprocess
-import tarfile
 import tempfile
-from pathlib import Path
+import time
 from typing import Optional
 from uuid import UUID
 
 import docker
 from docker.errors import APIError, BuildError
 from jinja2 import Environment, FileSystemLoader
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
-from .strategies import get_deployment_strategy, get_build_strategy
+from ..clients import management_client
 from ..config import Settings
 from ..db import get_session_factory
-from ..models.deployment import Deployment, DeploymentStatus
-from ..clients import management_client
 from ..logging_config import logger
+from ..models.deployment import Deployment, DeploymentStatus
+from .strategies import get_build_strategy, get_deployment_strategy
 
 # Get settings
 settings = Settings()
@@ -94,6 +89,7 @@ async def _wait_for_cloud_run_service(
             f"[CloudRun:{service_name}] Timeout waiting for service readiness. Last error: {last_error}"
         )
     return None, {}
+
 
 async def get_deployment_status(deployment_id: UUID) -> dict:
     """Fetch the current deployment status and metadata from the database.
@@ -197,10 +193,14 @@ async def start_deployment_process(deployment_id: UUID):
             # Choose template based on deployment type
             # Use 'deploy_real_agent' flag on Deployment to select real agent image
             try:
-                deploy_real_agent = bool(getattr(deployment, "deploy_real_agent", False))
+                deploy_real_agent = bool(
+                    getattr(deployment, "deploy_real_agent", False)
+                )
             except Exception:
                 deploy_real_agent = False
-            template_name = "Dockerfile.agent.j2" if deploy_real_agent else "Dockerfile.j2"
+            template_name = (
+                "Dockerfile.agent.j2" if deploy_real_agent else "Dockerfile.j2"
+            )
             template = jinja_env.get_template(template_name)
             dockerfile_content = (
                 template.render()
@@ -226,35 +226,41 @@ async def start_deployment_process(deployment_id: UUID):
 
             # Determine build strategy from settings
             build_strategy = settings.BUILD_STRATEGY.lower()
-            
+
             # For Cloud Run deployments, we need linux/amd64 images
             if settings.DEPLOYMENT_STRATEGY.lower() == "cloud_run":
                 logger.info(
                     f"[Deployment:{deployment_id}] Cloud Run deployment detected; using {build_strategy} for linux/amd64"
                 )
-                
+
                 # Get build strategy instance (now consistent for both cloud_build and github_actions)
                 build_strategy_instance = get_build_strategy(build_strategy)
-                logger.info(f"[Deployment:{deployment_id}] Using {build_strategy} for cross-platform build")
-                
+                logger.info(
+                    f"[Deployment:{deployment_id}] Using {build_strategy} for cross-platform build"
+                )
+
                 # Trigger the build workflow
                 run_id = await build_strategy_instance.trigger_workflow(
                     deployment_id=str(deployment_id),
                     image_tag=image_tag,
-                    build_context_path=build_dir_path
+                    build_context_path=build_dir_path,
                 )
-                
-                logger.info(f"[Deployment:{deployment_id}] {build_strategy} workflow triggered, run ID: {run_id}")
-                
+
+                logger.info(
+                    f"[Deployment:{deployment_id}] {build_strategy} workflow triggered, run ID: {run_id}"
+                )
+
                 # Wait for build completion
                 build_success = await build_strategy_instance.wait_for_build(
                     run_id=run_id,
                     deployment_id=str(deployment_id),
-                    timeout=600  # 10 minutes
+                    timeout=600,  # 10 minutes
                 )
-                
+
                 if build_success:
-                    logger.info(f"[Deployment:{deployment_id}] {build_strategy} build completed successfully")
+                    logger.info(
+                        f"[Deployment:{deployment_id}] {build_strategy} build completed successfully"
+                    )
                     image_pushed = True
                 else:
                     raise RuntimeError(f"{build_strategy} build failed")
@@ -264,19 +270,16 @@ async def start_deployment_process(deployment_id: UUID):
                 logger.info(
                     f"[Deployment:{deployment_id}] Building with platform: {preferred_platform or 'default'}"
                 )
-                
+
                 try:
                     image, build_logs = _build_with_platform(preferred_platform)
                 except BuildError as be:
                     msg = str(be).lower()
                     # If manifest/arch issues on arm64, retry with linux/amd64
-                    retry_amd64 = (
-                        preferred_platform is None
-                        and (
-                            "no matching manifest" in msg
-                            or "exec format" in msg
-                            or ("platform" in msg and "not supported" in msg)
-                        )
+                    retry_amd64 = preferred_platform is None and (
+                        "no matching manifest" in msg
+                        or "exec format" in msg
+                        or ("platform" in msg and "not supported" in msg)
                     )
                     if retry_amd64:
                         logger.warning(
@@ -285,7 +288,10 @@ async def start_deployment_process(deployment_id: UUID):
                         image, build_logs = _build_with_platform("linux/amd64")
                     else:
                         # If we were explicitly using linux/amd64 and hit destination image error, retry without platform
-                        retry_no_platform = preferred_platform is not None and "failed to get destination image" in msg
+                        retry_no_platform = (
+                            preferred_platform is not None
+                            and "failed to get destination image" in msg
+                        )
                         if retry_no_platform:
                             logger.warning(
                                 f"[Deployment:{deployment_id}] Build failed with destination image error on {preferred_platform}. Retrying without platform..."
@@ -293,13 +299,13 @@ async def start_deployment_process(deployment_id: UUID):
                             image, build_logs = _build_with_platform(None)
                         else:
                             raise
-            if 'build_logs' in locals():
+            if "build_logs" in locals():
                 for log in build_logs:
                     if "stream" in log:
                         logger.debug(f"[Build:{deployment_id}] {log['stream'].strip()}")
 
             # 5. Push the image to the registry (skip if buildx already pushed)
-            if not locals().get('image_pushed', False):
+            if not locals().get("image_pushed", False):
                 logger.info(
                     f"[Deployment:{deployment_id}] Pushing image to {settings.GCR_HOSTNAME}..."
                 )
@@ -314,7 +320,9 @@ async def start_deployment_process(deployment_id: UUID):
 
                 logger.info(f"[Deployment:{deployment_id}] Image pushed successfully.")
             else:
-                logger.info(f"[Deployment:{deployment_id}] Image already pushed via buildx.")
+                logger.info(
+                    f"[Deployment:{deployment_id}] Image already pushed via buildx."
+                )
 
             # 6. Deploy
             # If we built via GitHub Actions for Cloud Run, deployment happens in GitHub Actions.
