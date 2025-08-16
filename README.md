@@ -27,8 +27,8 @@ The platform is built on a microservice architecture, where each service has a d
 - **auth_service**: Manages user registration, login, profiles, and API key generation. It acts as the central authentication authority.
 - **agent_management_service**: Handles the lifecycle of agents, including creating, updating, and storing their definitions (Langflow JSON).
 - **tool_registry_service**: Manages the registration and storage of custom tools that agents can use.
-- **agent_deployment_service**: Orchestrates the deployment of agent flows into runnable, containerized services.
-- **agent_runtime_service**: The execution environment where deployed agents run.
+- **agent_deployment_service**: Orchestrates build and deployment of agents to target platforms. It does not handle provisioning.
+- **agent_runtime_service**: Owns provisioning and runtime provider integrations (e.g., Langflow). Provides APIs like `POST /api/v1/agents/provision` and runtime-facing endpoints.
 - **(Future Services)**: nl_agent_service, observability_service, etc.
 
 ## Setup Instructions

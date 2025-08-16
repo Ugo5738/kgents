@@ -35,6 +35,7 @@ The service stores conversations and messages in Postgres, exposes REST for CRUD
 - Background agent run when a user message arrives
 - WebSocket streaming of acknowledgements and assistant chunks
 - Langflow Cloud Run integration (bearer via `/api/v1/auto_login`)
+- Provisioning delegated to Agent Runtime Service (ARS) via `POST /api/v1/agents/provision`
 - Idempotent M2M bootstrap with the auth service, writing client credentials to `.env.dev`
 
 
@@ -60,6 +61,7 @@ Use `conversation_service/.env.dev` during development. Important variables:
   - `CONVERSATION_SERVICE_USER_JWT_AUDIENCE=authenticated`
 - External Runtimes
   - `LANGFLOW_RUNTIME_URL=https://<your-cloud-run-app>`
+  - `AGENT_RUNTIME_SERVICE_URL=http://agent_runtime_service:8000` (used for provisioning only)
 - Auth bootstrap (for M2M creation)
   - `AUTH_SERVICE_URL=http://auth_service:8000/api/v1`
   - `INITIAL_ADMIN_EMAIL=admin@admin.com`
@@ -149,7 +151,14 @@ See `src/conversation_service/models/` and `schemas/conversation.py` for details
 
 ## Runtime Integration
 
-`services/runtime.py` attempts a real flow execution when Langflow `auto_login` is available by probing common runtime endpoints; when that fails, it falls back to a simulated stream. This will be replaced with a stable, versioned integration once the target API surface is finalized.
+`services/runtime.py` attempts a real flow execution when Langflow `auto_login` is available by probing common runtime endpoints; when that fails, it falls back to a simulated stream.
+
+### Provisioning
+
+- `services/provisioning.py` binds a `flow_id` to a conversation when missing.
+- The only provisioning endpoint used is the Agent Runtime Service (ARS):
+  - `POST {AGENT_RUNTIME_SERVICE_URL}/api/v1/agents/provision` with `{ "description": "<task or agent description>" }`.
+- Agent Deployment Service (ADS) is not used for provisioning and there is no fallback.
 
 
 ## Security

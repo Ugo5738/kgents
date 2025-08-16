@@ -6,11 +6,8 @@ from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ..security import (
-    AuthError,
-    decode_any_jwt,
-    extract_bearer_token_from_ws,
-)
+from shared.security.jwt import AuthError, decode_any, parse_bearer
+from ..config import settings
 
 ws_router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
@@ -52,12 +49,26 @@ def get_ws_manager() -> ConnectionManager:
 @ws_router.websocket("/conversations/{conversation_id}")
 async def conversation_websocket(websocket: WebSocket, conversation_id: str):
     # Enforce JWT auth before accepting the connection
-    token = extract_bearer_token_from_ws(websocket)
+    token = parse_bearer(websocket.headers, websocket.query_params)
     if not token:
         await websocket.close(code=1008)
         return
     try:
-        claims = decode_any_jwt(token)
+        claims = decode_any(
+            token,
+            user_cfg={
+                "secret": settings.USER_JWT_SECRET_KEY,
+                "algorithm": settings.USER_JWT_ALGORITHM,
+                "issuer": settings.USER_JWT_ISSUER,
+                "audience": settings.USER_JWT_AUDIENCE,
+            },
+            m2m_cfg={
+                "secret": settings.M2M_JWT_SECRET_KEY,
+                "algorithm": settings.M2M_JWT_ALGORITHM,
+                "issuer": settings.M2M_JWT_ISSUER,
+                "audience": settings.M2M_JWT_AUDIENCE,
+            },
+        )
         # Optionally: validate conversation access from claims here
     except AuthError:
         await websocket.close(code=1008)

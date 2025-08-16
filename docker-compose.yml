@@ -26,22 +26,30 @@ services:
       # Gives container Docker's authentication config, allowing it to push to GCR
       - ~/.docker:/root/.docker
 
+  agent_runtime_service:
+    extends:
+      file: agent_runtime_service/docker-compose.dev.yml
+      service: agent_runtime_service_dev
+
   conversation_service:
     extends:
       file: conversation_service/docker-compose.dev.yml
       service: conversation_service_dev
 
-  # langflow_ide:
-  #   image: langflowai/langflow:latest
-  #   ports:
-  #     - "7860:7860"
-  #   env_file: .env
-  #   environment:
-  #     # This connects Langflow to the local Supabase Postgres instance
-  #     LANGFLOW_DATABASE_URL: "postgresql://postgres:postgres@supabase_db_kgents:5432/postgres"
-  #   networks:
-  #     - kgents_network
-  #     - supabase_network_kgents
+  langflow_ide:
+    image: langflowai/langflow:latest
+    ports:
+      - "7860:7860"
+    env_file: .env
+    environment:
+      # Connect Langflow to the local Supabase Postgres instance (external network)
+      LANGFLOW_DATABASE_URL: "postgresql://postgres:postgres@supabase_db_kgents:5432/postgres"
+      # Bind to all interfaces and prevent auto-opening a browser
+      LANGFLOW_HOST: "0.0.0.0"
+      LANGFLOW_OPEN_BROWSER: "false"
+    networks:
+      - kgents_network
+      - supabase_network_kgents
 
 networks:
   kgents_network:

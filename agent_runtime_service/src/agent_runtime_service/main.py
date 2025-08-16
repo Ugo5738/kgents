@@ -5,27 +5,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from slowapi.errors import RateLimitExceeded
 
 from .config import settings
 from .logging_config import setup_logging, setup_middleware
-from .rate_limiting import rate_limit_exceeded_handler, setup_rate_limiting
-from .routers import deployment_router, health_router
+from .routers import health_router, provisioning_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle manager with robust initialization.
-
-    Handles startup and shutdown sequences with proper error handling and retry logic.
-    """
     app.logger.info(f"'{settings.PROJECT_NAME}' startup sequence initiated.")
     app.startup_time = time.time()
-
-    # Yield control back to the application
     yield
-
-    # --- Application Shutdown ---
     app.logger.info(f"'{settings.PROJECT_NAME}' shutdown sequence initiated.")
 
 
@@ -34,18 +24,14 @@ setup_logging()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Service for deploying and managing the lifecycle of AI agents.",
+    description="Service for runtime provider integrations (e.g., Langflow) and provisioning.",
     version="1.0.0",
     root_path=settings.ROOT_PATH,
     lifespan=lifespan,
     openapi_tags=[
         {
-            "name": "Agents",
-            "description": "Operations for managing agents including CRUD operations",
-        },
-        {
-            "name": "Versions",
-            "description": "Operations for managing agent versions including creation and retrieval",
+            "name": "Runtime Provisioning",
+            "description": "Operations for provisioning/selecting runtime provider artifacts.",
         },
     ],
     docs_url="/docs",
@@ -59,9 +45,6 @@ app.logger = logging.getLogger(settings.PROJECT_NAME)
 
 # Setup middleware - MUST be done before application starts
 setup_middleware(app)
-
-# Setup rate limiting
-setup_rate_limiting(app)
 
 
 # Exception handlers
@@ -81,12 +64,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# Use the handler from rate_limiting module
-app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-
-# --- Include API routers - all protected by default ---
-app.include_router(deployment_router)
+# --- Include API routers ---
 app.include_router(health_router)
+app.include_router(provisioning_router)
 
-# Add a logger attribute to the app for easy access in routes if needed
-app.logger = logging.getLogger("agent_deployment_service")
+# App logger alias
+app.logger = logging.getLogger("agent_runtime_service")

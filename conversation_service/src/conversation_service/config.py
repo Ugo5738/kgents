@@ -65,16 +65,33 @@ class Settings(BaseSettings):
     USER_JWT_ALGORITHM: str = Field(
         "HS256", alias="CONVERSATION_SERVICE_USER_JWT_ALGORITHM"
     )
-    USER_JWT_ISSUER: str = Field(
-        ..., alias="CONVERSATION_SERVICE_USER_JWT_ISSUER"
-    )
-    USER_JWT_AUDIENCE: str = Field(
-        ..., alias="CONVERSATION_SERVICE_USER_JWT_AUDIENCE"
-    )
+    USER_JWT_ISSUER: str = Field(..., alias="CONVERSATION_SERVICE_USER_JWT_ISSUER")
+    USER_JWT_AUDIENCE: str = Field(..., alias="CONVERSATION_SERVICE_USER_JWT_AUDIENCE")
 
     # External runtimes
     LANGFLOW_RUNTIME_URL: str = Field(
         "http://langflow_ide:7860", alias="LANGFLOW_RUNTIME_URL"
+    )
+
+    # Auth service base URL (includes /api/v1)
+    AUTH_SERVICE_URL: str = Field(
+        "http://auth_service:8000/api/v1", alias="AUTH_SERVICE_URL"
+    )
+
+    # Optional: default flow id to bind conversations to on first user message
+    DEFAULT_FLOW_ID: str | None = Field(
+        default=None, alias="CONVERSATION_SERVICE_DEFAULT_FLOW_ID"
+    )
+
+    # Optional: agent runtime service endpoint for provisioning flows (preferred)
+    AGENT_RUNTIME_SERVICE_URL: str | None = Field(
+        default=None, alias="AGENT_RUNTIME_SERVICE_URL"
+    )
+
+    # Optional: M2M client credentials created by bootstrap for inter-service auth
+    CLIENT_ID: str | None = Field(default=None, alias="CONVERSATION_SERVICE_CLIENT_ID")
+    CLIENT_SECRET: str | None = Field(
+        default=None, alias="CONVERSATION_SERVICE_CLIENT_SECRET"
     )
 
     def is_production(self) -> bool:

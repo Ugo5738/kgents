@@ -85,7 +85,7 @@ async def create_m2m_client(admin_token: str) -> Optional[Tuple[str, str]]:
                 },
                 timeout=10.0,
             )
-            if response.status_code == 200:
+            if response.status_code == 200 or response.status_code == 201:
                 data = response.json()
                 client_id = data.get("client_id")
                 client_secret = data.get("client_secret")
@@ -133,7 +133,9 @@ async def wait_for_auth_service(max_retries: int = 30, delay: int = 2) -> bool:
     async with httpx.AsyncClient() as client:
         for i in range(max_retries):
             try:
-                response = await client.get(f"{AUTH_SERVICE_URL}/health", timeout=5.0)
+                response = await client.get(
+                    f"{AUTH_SERVICE_URL}/health/liveness", timeout=5.0
+                )
                 if response.status_code == 200:
                     logger.info("Auth service is ready")
                     return True
@@ -182,7 +184,9 @@ async def run_bootstrap() -> bool:
     logger.info("Creating new M2M client...")
     client_credentials = await create_m2m_client(admin_token)
     if not client_credentials:
-        logger.warning("Could not create M2M client. Service will run without M2M auth.")
+        logger.warning(
+            "Could not create M2M client. Service will run without M2M auth."
+        )
         return True
 
     client_id, client_secret = client_credentials

@@ -1,0 +1,23 @@
+# agent_runtime_service/docker-compose.dev.yml
+services:
+  agent_runtime_service_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8000"
+    volumes:
+      # Mount the service's source code for hot-reloading
+      - ./src:/app/src
+      # Mount the shared code as an editable package
+      - ../shared:/shared
+    env_file:
+      - ./.env.dev # Load development environment variables
+    environment:
+      # Pass these variables to the container for the entrypoint script
+      - SERVICE_MODULE=agent_runtime_service
+      # Configure Python to find the shared package
+      - PYTHONPATH=/app/src:/app:/shared:$PYTHONPATH
+    networks:
+      - kgents_network
+      - supabase_network_kgents # Connect to Supabase network from root compose

@@ -4,6 +4,8 @@
 
 The Agent Deployment Service is a core component of the Kgents platform responsible for orchestrating the deployment of AI agents. It takes a published agent version, packages it into a runnable service (e.g., Docker container), and manages its lifecycle across multiple deployment platforms.
 
+> Note: Provisioning is not handled by this service. Agent provisioning (e.g., selecting a Langflow flow) is exclusively owned by the Agent Runtime Service (see `agent_runtime_service/README.md`).
+
 ## Key Features
 
 ### 🚀 Multi-Platform Deployment

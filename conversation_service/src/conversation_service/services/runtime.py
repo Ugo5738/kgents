@@ -9,6 +9,9 @@ import httpx
 from ..config import settings
 from ..logging_config import logger
 from ..routers.ws_router import get_ws_manager
+from ..models import Conversation
+from ..db import get_session_factory
+from .provisioning import provision_flow_if_missing
 
 
 async def get_langflow_token(client: httpx.AsyncClient) -> Optional[str]:
@@ -26,12 +29,36 @@ async def get_langflow_token(client: httpx.AsyncClient) -> Optional[str]:
         return None
 
 
+async def _get_bound_flow_id(conversation_id: str) -> Optional[str]:
+    """Read conversation.metadata_json["flow_id"] if present."""
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            conv = await session.get(Conversation, conversation_id)
+            if not conv:
+                return None
+            meta = getattr(conv, "metadata_json", None)
+            if isinstance(meta, dict):
+                fid = meta.get("flow_id")
+                if isinstance(fid, (str, int)):
+                    return str(fid)
+    except Exception:
+        return None
+    return None
+
+
 async def run_agent_flow(conversation_id: str, user_message: str) -> None:
     """
     Kick off an agent flow run for the given conversation.
     Currently simulates streaming output; replace with actual Langflow run.
     """
     manager = get_ws_manager()
+
+    # Ensure a flow is bound to the conversation (DEFAULT_FLOW_ID or provisioned)
+    try:
+        await provision_flow_if_missing(conversation_id, user_message)
+    except Exception as e:
+        logger.debug("Provisioning step failed (non-fatal): %s", e)
 
     token: Optional[str] = None
     try:
@@ -85,8 +112,9 @@ async def _try_real_langflow_run(
     base = settings.LANGFLOW_RUNTIME_URL.rstrip("/")
 
     async with httpx.AsyncClient(headers=headers, timeout=15.0) as client:
-        # 1) Try to enumerate flows using a few likely endpoints
-        flow_id = await _discover_flow_id(client, base)
+        # 1) Prefer conversation-bound flow_id, then DEFAULT_FLOW_ID, then discovery
+        bound = await _get_bound_flow_id(conversation_id)
+        flow_id = bound or settings.DEFAULT_FLOW_ID or await _discover_flow_id(client, base)
         if not flow_id:
             await manager.send_text(
                 conversation_id,
